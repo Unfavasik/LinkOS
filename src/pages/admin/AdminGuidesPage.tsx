@@ -46,6 +46,7 @@ const emptyGuide = (): Guide => ({
   video_url: '',
   tags: [],
   steps: [],
+  show_step_numbers: true,
   is_published: true,
 });
 
@@ -54,10 +55,11 @@ const StepEditor: React.FC<{
   step: GuideStep;
   index: number;
   total: number;
+  showNumbers: boolean;
   onChange: (next: GuideStep) => void;
   onRemove: () => void;
   onMove: (dir: -1 | 1) => void;
-}> = ({ step, index, total, onChange, onRemove, onMove }) => {
+}> = ({ step, index, total, showNumbers, onChange, onRemove, onMove }) => {
   const fileRef = useRef<HTMLInputElement>(null);
   const up = useUploadProgress();
   const [uploadError, setUploadError] = useState('');
@@ -82,7 +84,9 @@ const StepEditor: React.FC<{
   return (
     <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-3.5 space-y-2.5">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[12px] font-bold text-slate-400 uppercase tracking-wider">Step {index + 1}</span>
+        <span className="text-[12px] font-bold text-slate-400 uppercase tracking-wider">
+          {showNumbers ? `Step ${index + 1}` : 'Step'}
+        </span>
         <span className="flex items-center gap-1">
           <button
             type="button"
@@ -472,14 +476,25 @@ export const AdminGuidesPage: React.FC = () => {
           <div className={`${PANEL} p-4 space-y-3`}>
             <div className="flex items-center justify-between">
               <h2 className="text-[13px] font-bold text-slate-400 uppercase tracking-wider">Steps ({editing.steps.length})</h2>
-              <button
-                type="button"
-                onClick={() => patch({ steps: [...editing.steps, { title: '', body: '' }] })}
-                className="inline-flex items-center gap-1.5 px-3 h-8 rounded-lg bg-blue-600 text-[12px] font-semibold text-white hover:bg-blue-500"
-              >
-                <Plus className="w-3.5 h-3.5" aria-hidden="true" />
-                Add step
-              </button>
+              <div className="flex items-center gap-2">
+                <label className="inline-flex items-center gap-1.5 text-[12px] font-medium text-slate-400 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={editing.show_step_numbers}
+                    onChange={(e) => patch({ show_step_numbers: e.target.checked })}
+                    className="w-3.5 h-3.5 accent-blue-500"
+                  />
+                  Step numbers
+                </label>
+                <button
+                  type="button"
+                  onClick={() => patch({ steps: [...editing.steps, { title: '', body: '' }] })}
+                  className="inline-flex items-center gap-1.5 px-3 h-8 rounded-lg bg-blue-600 text-[12px] font-semibold text-white hover:bg-blue-500"
+                >
+                  <Plus className="w-3.5 h-3.5" aria-hidden="true" />
+                  Add step
+                </button>
+              </div>
             </div>
             {editing.steps.length === 0 && (
               <p className="text-[12px] text-slate-500 py-2">No steps yet — add the first one.</p>
@@ -491,6 +506,7 @@ export const AdminGuidesPage: React.FC = () => {
                   step={step}
                   index={i}
                   total={editing.steps.length}
+                  showNumbers={editing.show_step_numbers}
                   onChange={(next) => {
                     const steps = [...editing.steps];
                     steps[i] = next;
