@@ -194,9 +194,11 @@ const EditProfileForm: React.FC<{
                 className="w-20 h-20 rounded-full object-cover border border-slate-200"
               />
             ) : (
-              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-lg font-extrabold text-white">
-                {initials}
-              </div>
+              <img
+                src="/images/default-avatar.png"
+                alt="Default avatar"
+                className="w-20 h-20 rounded-full object-cover border border-slate-200"
+              />
             )}
             <button
               type="button"

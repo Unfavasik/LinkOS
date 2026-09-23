@@ -92,9 +92,11 @@ export const OverviewPage: React.FC = () => {
                 className="w-14 h-14 rounded-full object-cover border-2 border-white/20 shrink-0"
               />
             ) : (
-              <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 border-2 border-white/20 flex items-center justify-center text-sm font-extrabold shrink-0">
-                {initials}
-              </div>
+              <img
+                src="/images/default-avatar.png"
+                alt="Default avatar"
+                className="w-14 h-14 rounded-full object-cover border-2 border-white/20 shrink-0"
+              />
             )}
             <div>
               <p className="text-xs text-slate-400">Welcome back,</p>

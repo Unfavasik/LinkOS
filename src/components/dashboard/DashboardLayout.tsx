@@ -221,7 +221,11 @@ export const DashboardLayout: React.FC = () => {
                   className="w-full h-full object-cover"
                 />
               ) : (
-                ownerInitials
+                <img
+                  src="/images/default-avatar.png"
+                  alt="Default avatar"
+                  className="w-full h-full object-cover"
+                />
               )}
             </button>
           </div>
