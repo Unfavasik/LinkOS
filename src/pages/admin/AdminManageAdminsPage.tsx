@@ -108,7 +108,9 @@ export const AdminManageAdminsPage: React.FC = () => {
     }
 
     setInviting(false);
-    setNotice(`Admin successfully added for ${normalized} with "${role}" role! They can now log in directly.`);
+    setNotice(
+      `${normalized} added with "${role}" role. They just log in with this Gmail and their password — Supabase verifies the role and opens the Admin Panel directly. (First time? They can use the Sign Up page with the same Gmail.)`
+    );
     setEmail('');
     setRole('admin');
     load();
@@ -201,7 +203,9 @@ export const AdminManageAdminsPage: React.FC = () => {
         {formError && <p className="mt-2.5 text-[12px] text-red-400">{formError}</p>}
         {notice && <p className="mt-2.5 text-[12px] text-emerald-400">{notice}</p>}
         <p className="mt-3 text-[11px] text-slate-500">
-          The invited gmail receives its role automatically the first time it logs in.
+          The invited Gmail gets its role instantly. They log in with this Gmail + their own
+          password — Supabase checks the role and sends them straight to the Admin Panel, same as
+          the owner. If they have never made an account, they sign up once with the same Gmail.
         </p>
       </form>
 

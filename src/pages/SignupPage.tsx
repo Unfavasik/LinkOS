@@ -4,7 +4,7 @@ import { ArrowRight, Lock, Mail, Eye, EyeOff, User, ShieldCheck, Users, Zap } fr
 import { AuthShell, SocialButtons } from '../components/auth/AuthShell';
 import { StorageService } from '../lib/storage';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { resolvePostAuthRoute } from '../lib/adminAuth';
+import { resolvePostAuthRoute, verifyAdmin } from '../lib/adminAuth';
 
 const COLLAGE = [
   { src: '/images/cafe/interior.webp', alt: 'Café interior', cls: 'left-0 top-0 w-28 h-20 -rotate-6' },
@@ -106,7 +106,10 @@ export const SignupPage: React.FC = () => {
           email: data.user.email || email,
           business_name: fullName || 'My Business',
         });
-        navigate('/onboarding');
+        // An invited admin signing up for the first time goes straight to the
+        // admin panel; everyone else starts onboarding.
+        const adminRoute = await verifyAdmin(data.user.email || email, data.user.id);
+        navigate(adminRoute ? '/admin' : '/onboarding');
         return;
       }
 
