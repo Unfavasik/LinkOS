@@ -163,11 +163,15 @@ export async function verifyAdmin(
         return data ?? (await redeemInvite(cleanEmail));
       })();
 
-      const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 2500));
-      const data = await Promise.race([queryPromise, timeoutPromise]);
+      // A completed query is authoritative when Supabase is reachable — only a
+      // timeout falls through to the local-storage fallback below.
+      const timeoutPromise = new Promise<'timeout'>((resolve) =>
+        setTimeout(() => resolve('timeout'), 2500)
+      );
+      const result = await Promise.race([queryPromise, timeoutPromise]);
 
-      if (data) {
-        cachedAdmin = data;
+      if (result !== 'timeout') {
+        cachedAdmin = result;
         return cachedAdmin;
       }
     } catch (e) {
