@@ -917,4 +917,118 @@ export const StorageService = {
       reader.readAsDataURL(stored);
     });
   },
+
+  async uploadVideo(file: File, bucket: 'logos' | 'products' | 'avatars' = 'products'): Promise<string> {
+    const validTypes = ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-matroska', 'video/ogg'];
+    if (!validTypes.includes(file.type)) {
+      throw new Error('Unsupported video format. Please upload MP4, WEBM, MOV, or MKV.');
+    }
+
+    // Validate size (max 100MB)
+    const maxSize = 100 * 1024 * 1024;
+    if (file.size > maxSize) {
+      throw new Error('Video size exceeds 100MB. Please choose a smaller video.');
+    }
+
+    // Every stored video becomes WebM. Re-encoding runs in the browser with
+    // MediaRecorder; if the browser cannot re-encode, the original is kept.
+    const stored = await (async (): Promise<File> => {
+      if (file.type === 'video/webm') return file;
+      if (typeof MediaRecorder === 'undefined' || !MediaRecorder.isTypeSupported('video/webm')) return file;
+      try {
+        const url = URL.createObjectURL(file);
+        const video = document.createElement('video');
+        video.src = url;
+        video.preload = 'auto';
+        await new Promise<void>((resolve, reject) => {
+          video.onloadedmetadata = () => resolve();
+          video.onerror = () => reject(new Error('decode failed'));
+        });
+
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth || 1280;
+        canvas.height = video.videoHeight || 720;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) throw new Error('canvas unavailable');
+
+        const stream = canvas.captureStream(30);
+        try {
+          const ac = new AudioContext();
+          await ac.resume();
+          const source = ac.createMediaElementSource(video);
+          const dest = ac.createMediaStreamDestination();
+          source.connect(dest);
+          dest.stream.getAudioTracks().forEach((t) => stream.addTrack(t));
+        } catch {
+          /* silent video is acceptable */
+        }
+
+        const mime = MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus')
+          ? 'video/webm;codecs=vp9,opus'
+          : 'video/webm';
+        const recorder = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 2500000 });
+        const chunks: Blob[] = [];
+        recorder.ondataavailable = (e) => {
+          if (e.data.size) chunks.push(e.data);
+        };
+        const stopped = new Promise<void>((resolve) => {
+          recorder.onstop = () => resolve();
+        });
+        const draw = () => {
+          if (video.ended) return;
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          requestAnimationFrame(draw);
+        };
+
+        video.currentTime = 0;
+        try {
+          await video.play();
+        } catch {
+          video.muted = true;
+          await video.play();
+        }
+        recorder.start(250);
+        draw();
+        await new Promise<void>((resolve) => {
+          video.onended = () => resolve();
+        });
+        recorder.stop();
+        await stopped;
+        URL.revokeObjectURL(url);
+
+        const blob = new Blob(chunks, { type: 'video/webm' });
+        if (!blob.size) return file;
+        const name = `${file.name.replace(/\.[^.]+$/, '')}.webm`;
+        return new File([blob], name, { type: 'video/webm' });
+      } catch {
+        return file;
+      }
+    })();
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const targetBucket = bucket === 'avatars' ? 'logos' : bucket;
+        const fileExt = stored.name.split('.').pop();
+        const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from(targetBucket)
+          .upload(fileName, stored, { cacheControl: '3600', upsert: true, contentType: stored.type });
+
+        if (!uploadError) {
+          const { data } = supabase.storage.from(targetBucket).getPublicUrl(fileName);
+          if (data?.publicUrl) return data.publicUrl;
+        }
+      } catch (err) {
+        console.warn('Supabase video upload failed, falling back to local file reader:', err);
+      }
+    }
+
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = (error) => reject(error);
+      reader.readAsDataURL(stored);
+    });
+  },
 };

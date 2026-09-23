@@ -28,7 +28,7 @@ export const RESOURCE_CATEGORIES: ResourceCategory[] = [
     tileColor: 'text-blue-600',
     metaColor: 'text-blue-600',
     chips: ['Guides'],
-    href: '/resources/how-to-create-your-first-business-page',
+    href: '/resources/guides',
   },
   {
     id: 'templates',
@@ -80,7 +80,7 @@ export const RESOURCE_CATEGORIES: ResourceCategory[] = [
     tileColor: 'text-rose-500',
     metaColor: 'text-rose-500',
     chips: ['Guides'],
-    href: '/resources/how-to-create-your-first-business-page',
+    href: '/resources/guides',
   },
   {
     id: 'help',

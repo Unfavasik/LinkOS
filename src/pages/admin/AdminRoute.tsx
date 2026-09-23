@@ -14,7 +14,9 @@ export const AdminRoute: React.FC = () => {
     const cached = getCachedAdmin();
     if (cached) return 'allowed';
     const user = StorageService.getActiveUser();
-    if (user?.email && isKnownAdminEmail(user.email)) return 'allowed';
+    // Offline mode only: known owner emails get instant entry. When Supabase
+    // is configured, verification must go through the `admins` table.
+    if (user?.email && isKnownAdminEmail(user.email) && !isSupabaseConfigured) return 'allowed';
     return 'checking';
   });
 
@@ -49,7 +51,7 @@ export const AdminRoute: React.FC = () => {
         return;
       }
 
-      if (isKnownAdminEmail(user.email)) {
+      if (!isSupabaseConfigured && isKnownAdminEmail(user.email)) {
         if (alive) setStatus('allowed');
         return;
       }
@@ -66,7 +68,7 @@ export const AdminRoute: React.FC = () => {
     const timeout = setTimeout(() => {
       if (alive && status === 'checking') {
         const u = StorageService.getActiveUser();
-        if (u?.email && isKnownAdminEmail(u.email)) {
+        if (u?.email && isKnownAdminEmail(u.email) && !isSupabaseConfigured) {
           setStatus('allowed');
         } else {
           setStatus('denied');

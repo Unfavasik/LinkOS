@@ -4,7 +4,7 @@ import { ArrowRight, Lock, Mail, Eye, EyeOff, Coffee, Scissors, ShoppingBag, Car
 import { AuthShell, SocialButtons } from '../components/auth/AuthShell';
 import { StorageService } from '../lib/storage';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { verifyAdmin, isKnownAdminEmail } from '../lib/adminAuth';
+import { verifyAdmin } from '../lib/adminAuth';
 
 const FLOAT_TILES = [
   { Icon: Coffee, cls: 'left-2 top-2 -rotate-12', color: 'text-zinc-200' },
@@ -24,72 +24,53 @@ export const LoginPage: React.FC = () => {
   const [remember, setRemember] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [stage, setStage] = useState<'signing' | 'verifying'>('signing');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
+    setStage('signing');
 
     const cleanEmail = email.toLowerCase().trim();
 
     try {
       if (isSupabaseConfigured && supabase) {
-        try {
-          const { data, error: authError } = await supabase.auth.signInWithPassword({
-            email: cleanEmail,
-            password,
-          });
+        // Supabase verifies the credentials first — no email-based bypass.
+        const { data, error: authError } = await supabase.auth.signInWithPassword({
+          email: cleanEmail,
+          password,
+        });
 
-          if (authError) {
-            // If known admin / owner email, don't block access
-            if (isKnownAdminEmail(cleanEmail)) {
-              StorageService.setActiveUser({
-                id: 'admin_root_' + Date.now(),
-                email: cleanEmail,
-              });
-              await verifyAdmin(cleanEmail);
-              navigate('/admin');
-              return;
-            }
-
-            const isDemo = cleanEmail.includes('urbanbrew') || cleanEmail === 'anant';
-            if (isDemo) {
-              StorageService.loginDemoUser();
-              navigate('/dashboard');
-              return;
-            }
-            throw authError;
-          }
-
-          if (data?.user) {
-            StorageService.setActiveUser({
-              id: data.user.id,
-              email: data.user.email || cleanEmail,
-            });
-            const admin = await verifyAdmin(data.user.email || cleanEmail, data.user.id);
-            navigate(admin ? '/admin' : '/dashboard');
-            return;
-          }
-        } catch (supabaseErr: any) {
-          if (isKnownAdminEmail(cleanEmail)) {
-            StorageService.setActiveUser({
-              id: 'admin_root_' + Date.now(),
-              email: cleanEmail,
-            });
-            await verifyAdmin(cleanEmail);
-            navigate('/admin');
-            return;
-          }
-          if (cleanEmail === 'anant' || cleanEmail.includes('urbanbrew')) {
-            StorageService.loginUser(email, password);
+        if (authError) {
+          const isDemo = cleanEmail.includes('urbanbrew') || cleanEmail === 'anant';
+          if (isDemo) {
+            StorageService.loginDemoUser();
             navigate('/dashboard');
             return;
           }
-          throw supabaseErr;
+          throw authError;
         }
+
+        if (data?.user) {
+          StorageService.setActiveUser({
+            id: data.user.id,
+            email: data.user.email || cleanEmail,
+          });
+
+          // Supabase decides admin status: `admins` table lookup plus pending
+          // invite redemption. Admins land on the panel, everyone else on the
+          // regular dashboard.
+          setStage('verifying');
+          const admin = await verifyAdmin(data.user.email || cleanEmail, data.user.id);
+          navigate(admin ? '/admin' : '/dashboard');
+          return;
+        }
+
+        throw new Error('Sign-in did not return a user. Please try again.');
       }
 
-      // Offline / Local-first login
+      // Offline / Local-first login (Supabase not configured)
       StorageService.loginUser(email, password);
       const admin = await verifyAdmin(cleanEmail);
       navigate(admin ? '/admin' : '/dashboard');
@@ -219,7 +200,13 @@ export const LoginPage: React.FC = () => {
             disabled={loading}
             className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-[#1D7AFC] hover:bg-blue-500 text-white text-sm font-bold shadow-lg shadow-blue-600/30 transition-all active:scale-[0.98] disabled:opacity-50"
           >
-            <span>{loading ? 'Signing in...' : 'Log In'}</span>
+            <span>
+              {loading
+                ? stage === 'verifying'
+                  ? 'Verifying access...'
+                  : 'Signing in...'
+                : 'Log In'}
+            </span>
             <ArrowRight className="w-4 h-4" />
           </button>
         </form>

@@ -127,7 +127,10 @@ export async function verifyAdmin(
           updated_at: new Date().toISOString(),
         },
         { onConflict: 'email' }
-      ).then(() => {}).catch(() => {});
+      ).then(
+        () => {},
+        () => {}
+      );
     }
 
     return ownerRecord;
@@ -157,17 +160,18 @@ export async function verifyAdmin(
         }
 
         // Check for pending invite
-        if (!data) {
-          data = await redeemInvite(cleanEmail);
-        }
-        return data;
+        return data ?? (await redeemInvite(cleanEmail));
       })();
 
-      const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 2500));
-      const data = await Promise.race([queryPromise, timeoutPromise]);
+      // A completed query is authoritative when Supabase is reachable — only a
+      // timeout falls through to the local-storage fallback below.
+      const timeoutPromise = new Promise<'timeout'>((resolve) =>
+        setTimeout(() => resolve('timeout'), 2500)
+      );
+      const result = await Promise.race([queryPromise, timeoutPromise]);
 
-      if (data) {
-        cachedAdmin = data;
+      if (result !== 'timeout') {
+        cachedAdmin = result;
         return cachedAdmin;
       }
     } catch (e) {
@@ -244,6 +248,19 @@ async function redeemInvite(email: string): Promise<AdminRecord | null> {
 
 export function getCachedAdmin(): AdminRecord | null {
   return cachedAdmin ?? null;
+}
+
+/**
+ * Where an authenticated user should land after sign-in/sign-up. Admins are
+ * never sent to the user dashboard — they always go straight to the admin
+ * panel, everywhere in the app.
+ */
+export async function resolvePostAuthRoute(
+  email: string,
+  userId?: string
+): Promise<'/admin' | '/dashboard'> {
+  const admin = await verifyAdmin(email, userId);
+  return admin ? '/admin' : '/dashboard';
 }
 
 export function clearAdminCache() {

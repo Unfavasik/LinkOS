@@ -7,6 +7,8 @@ import FeaturesPage from './pages/FeaturesPage';
 import { TemplatesGalleryPage } from './pages/TemplatesGalleryPage';
 import { ResourcesPage } from './pages/ResourcesPage';
 import { ResourceArticlePage } from './pages/ResourceArticlePage';
+import { GuidesListPage } from './pages/GuidesListPage';
+import { GuideArticlePage } from './pages/GuideArticlePage';
 import { HelpCenterPage } from './pages/HelpCenterPage';
 import { HelpArticlePage } from './pages/HelpArticlePage';
 import { ContactSupportPage } from './pages/ContactSupportPage';
@@ -26,6 +28,7 @@ import {
 } from './pages/admin/AdminEngagePages';
 import { AdminAnalyticsPage, AdminSettingsPage } from './pages/admin/AdminSystemPages';
 import { AdminManageAdminsPage } from './pages/admin/AdminManageAdminsPage';
+import { AdminGuidesPage } from './pages/admin/AdminGuidesPage';
 import { AdminSupportTicketsPage } from './pages/admin/AdminSupportTicketsPage';
 import { AdminFeedbackPage } from './pages/admin/AdminFeedbackPage';
 import { AdminSectionGuard as Guard } from './pages/admin/AdminSectionGuard';
@@ -126,6 +129,8 @@ export default function App() {
         <Route path="/features" element={<FeaturesPage />} />
         <Route path="/templates" element={<TemplatesGalleryPage />} />
         <Route path="/resources" element={<ResourcesPage />} />
+        <Route path="/resources/guides" element={<GuidesListPage />} />
+        <Route path="/resources/guides/:slug" element={<GuideArticlePage />} />
         <Route path="/resources/:slug" element={<ResourceArticlePage />} />
         <Route path="/help" element={<HelpCenterPage />} />
         <Route path="/help/:slug" element={<HelpArticlePage />} />
@@ -149,6 +154,7 @@ export default function App() {
           <Route path="qr-codes" element={<Guard section="qr-codes"><AdminQrCodesPage /></Guard>} />
           <Route path="announcements" element={<Guard section="announcements"><AdminAnnouncementsPage /></Guard>} />
           <Route path="help-articles" element={<Guard section="announcements"><AdminHelpArticlesPage /></Guard>} />
+          <Route path="guides" element={<Guard section="announcements"><AdminGuidesPage /></Guard>} />
           <Route path="analytics" element={<Guard section="analytics"><AdminAnalyticsPage /></Guard>} />
           <Route path="settings" element={<Guard section="settings"><AdminSettingsPage /></Guard>} />
           <Route path="manage-admins" element={<Guard section="manage-admins"><AdminManageAdminsPage /></Guard>} />

@@ -69,6 +69,12 @@ export const DashboardLayout: React.FC = () => {
     };
   }, [location.pathname, navigate]);
 
+  // Admins never use the user dashboard: send them straight to the admin
+  // panel, even if they navigate to /dashboard manually.
+  useEffect(() => {
+    if (isVerifiedAdmin) navigate('/admin', { replace: true });
+  }, [isVerifiedAdmin, navigate]);
+
   const username = profile?.username || '';
   const fullPageUrl = `${window.location.origin}/${username}`;
 

@@ -32,6 +32,7 @@ import {
   X,
   MessageSquareHeart,
   BookOpen,
+  GraduationCap,
   Home,
   Smartphone,
 } from 'lucide-react';
@@ -64,6 +65,7 @@ const NAV_ITEMS: {
   { label: 'QR Codes', icon: QrCode, to: '/admin/qr-codes', section: 'qr-codes' },
   { label: 'Announcements', icon: Megaphone, to: '/admin/announcements', section: 'announcements' },
   { label: 'Help Articles', icon: BookOpen, to: '/admin/help-articles', section: 'announcements' },
+  { label: 'Guides', icon: GraduationCap, to: '/admin/guides', section: 'announcements' },
   { label: 'Analytics', icon: BarChart3, to: '/admin/analytics', section: 'analytics' },
   { label: 'Settings', icon: Settings, to: '/admin/settings', section: 'settings' },
   { label: 'Manage Admins', icon: ShieldCheck, to: '/admin/manage-admins', section: 'manage-admins' },
