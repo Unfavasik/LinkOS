@@ -1,9 +1,9 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Check, Loader2, Search } from 'lucide-react';
 import { ALL_TEMPLATES, TEMPLATE_CATEGORIES } from '../../data/templates';
 import { THEME_PALETTES } from '../../lib/theme';
-import { createWebsiteFromTemplate } from '../../lib/websites';
+import { createWebsiteFromTemplate, isSlugAvailable, slugify, suggestSlugs } from '../../lib/websites';
 
 export const CreateWebsitePage: React.FC = () => {
   const navigate = useNavigate();
@@ -13,6 +13,31 @@ export const CreateWebsitePage: React.FC = () => {
   const [selected, setSelected] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Live slug availability: as the user types a name, check whether the
+  // derived URL is free and offer tappable alternatives when it is taken.
+  const slugPreview = useMemo(() => slugify(name.trim() || 'my-website'), [name]);
+  const [slugTaken, setSlugTaken] = useState(false);
+  const [checkingSlug, setCheckingSlug] = useState(false);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+
+  useEffect(() => {
+    const clean = name.trim();
+    if (!clean) {
+      setSlugTaken(false);
+      setSuggestions([]);
+      setCheckingSlug(false);
+      return;
+    }
+    setCheckingSlug(true);
+    const timer = window.setTimeout(async () => {
+      const taken = !(await isSlugAvailable(slugPreview));
+      setSlugTaken(taken);
+      setSuggestions(taken ? await suggestSlugs(clean) : []);
+      setCheckingSlug(false);
+    }, 450);
+    return () => window.clearTimeout(timer);
+  }, [name, slugPreview]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -63,8 +88,35 @@ export const CreateWebsitePage: React.FC = () => {
           className="mt-2 w-full h-10 rounded-xl border border-zinc-300 px-3 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
         <p className="mt-1.5 text-[11px] text-zinc-400">
-          Your URL will be <span className="font-mono">linkos.app/{name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'my-website'}</span>
+          Your URL will be <span className="font-mono">linkos.app/{slugPreview}</span>
+          {checkingSlug && <span className="ml-2 text-zinc-400">checking…</span>}
         </p>
+        {slugTaken && !checkingSlug && (
+          <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50 p-3">
+            <p className="text-[11px] font-bold text-amber-800">
+              linkos.app/{slugPreview} is already taken
+            </p>
+            <p className="mt-0.5 text-[11px] text-amber-700">Tap a suggestion to use it:</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {suggestions.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setName(s)}
+                  className="rounded-lg border border-amber-300 bg-white px-2.5 py-1 font-mono text-[11px] font-bold text-amber-900 hover:bg-amber-100 transition-colors"
+                >
+                  {s}
+                </button>
+              ))}
+              {suggestions.length === 0 && (
+                <span className="text-[11px] text-amber-700">Loading suggestions…</span>
+              )}
+            </div>
+            <p className="mt-2 text-[10px] text-amber-600">
+              You can still create — a free suffix will be added automatically.
+            </p>
+          </div>
+        )}
       </div>
 
       <div className="mt-5 flex flex-col sm:flex-row sm:items-center gap-3">

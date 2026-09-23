@@ -48,7 +48,9 @@ async function currentUserId(): Promise<string | null> {
   return data?.user?.id ?? null;
 }
 
-/** Build a Profile-shaped content snapshot from template defaults.
+/** Build a Profile-shaped content snapshot from a template.
+ *  Only the template's DESIGN (theme, layout, fonts) carries over — all
+ *  content fields start empty so the user fills in their own data.
  *  Templates are never modified — each website gets its own copy. */
 export function templateContentSnapshot(tpl: PageTemplate, name: string): Profile {
   return {
@@ -57,10 +59,10 @@ export function templateContentSnapshot(tpl: PageTemplate, name: string): Profil
     business_name: name,
     username: '',
     category: tpl.category,
-    description: tpl.description,
+    description: '',
     logo_url: '',
-    cover_url: tpl.cover_url || '',
-    bio: tpl.description,
+    cover_url: '',
+    bio: '',
     phone: '',
     whatsapp: '',
     whatsapp_message: '',
@@ -82,12 +84,39 @@ export function templateContentSnapshot(tpl: PageTemplate, name: string): Profil
   } as Profile;
 }
 
-async function uniqueSlug(base: string): Promise<string> {
-  const clean =
+export function slugify(base: string): string {
+  return (
     base
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '') || 'site';
+      .replace(/^-+|-+$/g, '') || 'site'
+  );
+}
+
+/** Is this slug free on the public /site/ namespace? */
+export async function isSlugAvailable(slug: string): Promise<boolean> {
+  if (!isSupabaseConfigured || !supabase) return true;
+  const { data } = await supabase.from('websites').select('id').eq('slug', slug).maybeSingle();
+  return !data;
+}
+
+/** Suggest up to 3 available slugs derived from the user's chosen name,
+ *  e.g. "devasik" -> ["devasik-2", "devasik-cafe", "devasik-official"]. */
+export async function suggestSlugs(base: string): Promise<string[]> {
+  const clean = slugify(base);
+  const suffixes = ['-2', '-3', '-official', '-bd', '-online'];
+  const candidates = [`${clean}-2`, `${clean}-3`, `${clean}-official`, `${clean}-bd`, `${clean}-online`];
+  const available: string[] = [];
+  for (const candidate of candidates) {
+    if (await isSlugAvailable(candidate)) available.push(candidate);
+    if (available.length >= 3) break;
+  }
+  void suffixes;
+  return available;
+}
+
+async function uniqueSlug(base: string): Promise<string> {
+  const clean = slugify(base);
   if (!isSupabaseConfigured || !supabase) return `${clean}-${Date.now().toString(36)}`;
   let candidate = clean;
   for (let i = 0; i < 20; i++) {
