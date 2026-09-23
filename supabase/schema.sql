@@ -313,6 +313,21 @@ alter default privileges in schema public
   grant select, insert, update, delete on tables to anon, authenticated, service_role;
 
 -- ============================================================
+-- STORAGE — public buckets for image uploads (logos, products).
+-- Avatars upload into `logos` (see StorageService.uploadImage).
+-- ============================================================
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values
+  ('logos', 'logos', true, 5242880, array['image/jpeg','image/png','image/webp','image/svg+xml']),
+  ('products', 'products', true, 5242880, array['image/jpeg','image/png','image/webp','image/svg+xml'])
+on conflict (id) do nothing;
+
+-- Open access policy matching the project-wide "RLS disabled" setup.
+drop policy if exists "allow all object access" on storage.objects;
+create policy "allow all object access" on storage.objects
+  for all to anon, authenticated using (true) with check (true);
+
+-- ============================================================
 -- SEED — admins + templates
 -- NOTE: no owner is seeded here. Create the owner from the app
 -- (Admin Panel → Manage Admins) or the Supabase dashboard after
