@@ -8,7 +8,9 @@ export default defineConfig(() => {
     plugins: [react(), tailwindcss()],
     // Only VITE_-prefixed values may be exposed to browser code. Backend-only
     // SUPABASE_SERVICE_ROLE_KEY values must never enter the client bundle.
-    envPrefix: ['VITE_'],
+    // The v0 Supabase integration injects non-prefixed vars; expose only the
+    // public ones (URL + publishable key). SUPABASE_SECRET_KEY stays server-side.
+    envPrefix: ['VITE_', 'SUPABASE_URL', 'SUPABASE_PUBLISHABLE_KEY'],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),

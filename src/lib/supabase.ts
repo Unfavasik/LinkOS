@@ -1,9 +1,11 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-// Only public browser variables are read here. Service-role credentials belong
-// exclusively in the Needle backend environment.
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+// Only public browser variables are read here. Service-role credentials
+// (SUPABASE_SECRET_KEY) belong exclusively in server-side environments.
+// Prefer the v0-injected vars, falling back to the legacy VITE_ names.
+const supabaseUrl = import.meta.env.SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL || '';
+const supabaseAnonKey =
+  import.meta.env.SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
 export const isSupabaseConfigured = Boolean(
   supabaseUrl && 

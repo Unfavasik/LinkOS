@@ -98,11 +98,14 @@ export const AdminManageAdminsPage: React.FC = () => {
         { onConflict: 'email' }
       );
 
-    // Also record invite for audit
-    await supabase!
-      .from('admin_invites')
-      .insert({ email: normalized, role, status: 'accepted', invited_by: inviterId })
-      .catch(() => {});
+    // Also record invite for audit (non-blocking on failure)
+    try {
+      await supabase!
+        .from('admin_invites')
+        .insert({ email: normalized, role, status: 'accepted', invited_by: inviterId });
+    } catch {
+      // Audit log failure should not block admin creation
+    }
 
     setInviting(false);
     setNotice(`Admin successfully added for ${normalized} with "${role}" role! They can now log in directly.`);

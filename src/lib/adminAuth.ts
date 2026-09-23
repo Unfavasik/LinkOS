@@ -127,7 +127,10 @@ export async function verifyAdmin(
           updated_at: new Date().toISOString(),
         },
         { onConflict: 'email' }
-      ).then(() => {}).catch(() => {});
+      ).then(
+        () => {},
+        () => {}
+      );
     }
 
     return ownerRecord;
@@ -157,10 +160,7 @@ export async function verifyAdmin(
         }
 
         // Check for pending invite
-        if (!data) {
-          data = await redeemInvite(cleanEmail);
-        }
-        return data;
+        return data ?? (await redeemInvite(cleanEmail));
       })();
 
       const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 2500));

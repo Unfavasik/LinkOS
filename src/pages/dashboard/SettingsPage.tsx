@@ -216,7 +216,7 @@ export const SettingsPage: React.FC = () => {
           <p className="text-xs text-zinc-500 leading-relaxed">
             {isSupabaseConfigured
               ? 'Your applet is actively querying your remote Supabase PostgreSQL database.'
-              : 'LinkOS is running with zero friction using its LocalStorage fallback engine. To connect a dedicated cloud database, add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your environment variables.'}
+              : 'LinkOS is running with zero friction using its LocalStorage fallback engine. To connect a dedicated cloud database, add SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY to your environment variables.'}
           </p>
         </div>
       </div>
