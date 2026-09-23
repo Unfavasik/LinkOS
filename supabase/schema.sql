@@ -313,6 +313,29 @@ alter default privileges in schema public
   grant select, insert, update, delete on tables to anon, authenticated, service_role;
 
 -- ============================================================
+-- GUIDES & TUTORIALS — admin-authored articles for the Resources
+-- page. Steps are ordered JSON; each step can carry an image URL
+-- (uploads are converted to WebP before the URL is stored).
+-- ============================================================
+create table if not exists public.guides (
+  id uuid primary key default gen_random_uuid(),
+  slug text unique not null,
+  title text not null,
+  intro text default '',
+  tag text default 'Guide',
+  read_time text default '',
+  hero_url text default '',
+  hero_alt text default '',
+  learn jsonb default '[]'::jsonb,
+  video text default '',
+  tags jsonb default '[]'::jsonb,
+  steps jsonb default '[]'::jsonb,
+  is_published boolean default true,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+-- ============================================================
 -- STORAGE — public buckets for image uploads (logos, products).
 -- Avatars upload into `logos` (see StorageService.uploadImage).
 -- ============================================================
