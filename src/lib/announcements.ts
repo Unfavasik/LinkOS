@@ -1,11 +1,13 @@
 /**
- * Platform-wide announcements.
+ * Platform-wide announcements — Supabase-backed.
  *
  * Admins compose announcements in the admin panel; published ones appear on
  * the public /announcements page (linked from the Support Center sidebar).
- * Stored in localStorage under a versioned key, seeded with launch copy so
- * the public page is never empty on first run.
+ * Stored in the `announcements` table so every visitor sees the same feed
+ * (the previous localStorage store was per-browser and invisible to users).
  */
+
+import { supabase, isSupabaseConfigured } from './supabase';
 
 export interface Announcement {
   id: string;
@@ -16,67 +18,82 @@ export interface Announcement {
   published: boolean;
 }
 
-const KEY = 'linkos_announcements_v1';
-
-const SEED: Announcement[] = [
-  {
-    id: 'seed-ann-1',
-    title: 'LinkOS Pro is here',
-    body:
-      'Upgrade to Pro for premium templates, a custom domain, advanced analytics and priority support. Your first 14 days are on us.',
-    created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-    published: true,
-  },
-  {
-    id: 'seed-ann-2',
-    title: 'New: QR codes for every page',
-    body:
-      'Every business page now gets a scannable QR code you can download and print on menus, flyers and packaging. Find it under Dashboard → QR Code.',
-    created_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-    published: true,
-  },
-];
-
-function seedIfEmpty(): void {
-  if (localStorage.getItem(KEY)) return;
-  localStorage.setItem(KEY, JSON.stringify(SEED));
-}
-
-export function loadAnnouncements(): Announcement[] {
-  try {
-    seedIfEmpty();
-    const raw = localStorage.getItem(KEY);
-    const items = raw ? (JSON.parse(raw) as Announcement[]) : [];
-    return items.sort((a, b) => b.created_at.localeCompare(a.created_at));
-  } catch {
-    return [...SEED];
-  }
-}
-
-function persist(items: Announcement[]): void {
-  localStorage.setItem(KEY, JSON.stringify(items));
-}
-
-export function addAnnouncement(input: { title: string; body: string; published: boolean }): Announcement {
-  const item: Announcement = {
-    id: crypto.randomUUID(),
-    title: input.title.trim(),
-    body: input.body.trim(),
-    created_at: new Date().toISOString(),
-    published: input.published,
+function normalize(row: Record<string, unknown>): Announcement {
+  return {
+    id: row.id as string,
+    title: (row.title as string) || '',
+    body: (row.body as string) || '',
+    created_at: (row.created_at as string) || new Date().toISOString(),
+    published: row.published !== false,
   };
-  persist([item, ...loadAnnouncements()]);
-  return item;
 }
 
-export function updateAnnouncement(id: string, patch: Partial<Pick<Announcement, 'title' | 'body' | 'published'>>): void {
-  persist(loadAnnouncements().map((a) => (a.id === id ? { ...a, ...patch } : a)));
+/** Every announcement, including drafts — admin only. */
+export async function loadAnnouncements(): Promise<Announcement[]> {
+  if (!isSupabaseConfigured || !supabase) return [];
+  const { data, error } = await supabase
+    .from('announcements')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (error) {
+    console.log('[v0] load announcements failed:', error.message);
+    return [];
+  }
+  return (data ?? []).map(normalize);
 }
 
-export function deleteAnnouncement(id: string): void {
-  persist(loadAnnouncements().filter((a) => a.id !== id));
+export async function addAnnouncement(input: {
+  title: string;
+  body: string;
+  published: boolean;
+}): Promise<Announcement | null> {
+  if (!isSupabaseConfigured || !supabase) return null;
+  const { data, error } = await supabase
+    .from('announcements')
+    .insert({ title: input.title.trim(), body: input.body.trim(), published: input.published })
+    .select('*')
+    .single();
+  if (error) {
+    console.log('[v0] add announcement failed:', error.message);
+    return null;
+  }
+  return normalize(data);
 }
 
-export function loadPublishedAnnouncements(): Announcement[] {
-  return loadAnnouncements().filter((a) => a.published);
+export async function updateAnnouncement(
+  id: string,
+  patch: Partial<Pick<Announcement, 'title' | 'body' | 'published'>>,
+): Promise<boolean> {
+  if (!isSupabaseConfigured || !supabase) return false;
+  const { error } = await supabase.from('announcements').update(patch).eq('id', id);
+  if (error) {
+    console.log('[v0] update announcement failed:', error.message);
+    return false;
+  }
+  return true;
+}
+
+export async function deleteAnnouncement(id: string): Promise<boolean> {
+  if (!isSupabaseConfigured || !supabase) return false;
+  const { error } = await supabase.from('announcements').delete().eq('id', id);
+  if (error) {
+    console.log('[v0] delete announcement failed:', error.message);
+    return false;
+  }
+  return true;
+}
+
+/** Published announcements for the public feed. */
+export async function loadPublishedAnnouncements(): Promise<Announcement[]> {
+  if (!isSupabaseConfigured || !supabase) return [];
+  const { data, error } = await supabase
+    .from('announcements')
+    .select('*')
+    .eq('published', true)
+    .order('created_at', { ascending: false });
+  if (error) {
+    console.log('[v0] load published announcements failed:', error.message);
+    return [];
+  }
+  return (data ?? []).map(normalize);
 }

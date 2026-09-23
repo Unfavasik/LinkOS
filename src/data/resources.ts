@@ -67,7 +67,7 @@ export const RESOURCE_CATEGORIES: ResourceCategory[] = [
     tileColor: 'text-violet-600',
     metaColor: 'text-violet-600',
     chips: ['Business Tips'],
-    href: '/resources/10-ways-to-get-more-customers-online',
+    href: '/resources/business-tips',
   },
   {
     id: 'videos',

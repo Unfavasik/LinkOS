@@ -321,15 +321,23 @@ export const AdminAnnouncementsPage: React.FC = () => {
   const [sent, setSent] = useState(false);
 
   useEffect(() => {
-    setItems(loadAnnouncements());
+    let cancelled = false;
+    loadAnnouncements().then((rows) => {
+      if (!cancelled) setItems(rows);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const refresh = () => setItems(loadAnnouncements());
+  const refresh = () => {
+    loadAnnouncements().then(setItems);
+  };
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !body.trim()) return;
-    addAnnouncement({ title, body, published: publishNow });
+    await addAnnouncement({ title, body, published: publishNow });
     setTitle('');
     setBody('');
     setPublishNow(true);
@@ -432,8 +440,8 @@ export const AdminAnnouncementsPage: React.FC = () => {
                     type="button"
                     aria-label={a.published ? `Unpublish ${a.title}` : `Publish ${a.title}`}
                     title={a.published ? 'Unpublish' : 'Publish'}
-                    onClick={() => {
-                      updateAnnouncement(a.id, { published: !a.published });
+                    onClick={async () => {
+                      await updateAnnouncement(a.id, { published: !a.published });
                       refresh();
                     }}
                     className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-blue-300 hover:bg-blue-500/10 transition-colors shrink-0"
@@ -443,8 +451,8 @@ export const AdminAnnouncementsPage: React.FC = () => {
                   <button
                     type="button"
                     aria-label={`Delete ${a.title}`}
-                    onClick={() => {
-                      deleteAnnouncement(a.id);
+                    onClick={async () => {
+                      await deleteAnnouncement(a.id);
                       refresh();
                     }}
                     className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-colors shrink-0"

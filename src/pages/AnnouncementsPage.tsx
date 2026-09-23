@@ -1,6 +1,7 @@
 import { PublicNavbar } from '../components/common/PublicNavbar';
 import React from 'react';
 import { Megaphone } from 'lucide-react';
+import useSWR from 'swr';
 import { MobileTabBar } from '../components/common/MobileTabBar';
 import { SeoHead } from '../components/common/SeoHead';
 import { loadPublishedAnnouncements, type Announcement } from '../lib/announcements';
@@ -38,7 +39,9 @@ const AnnouncementCard: React.FC<{ a: Announcement }> = ({ a }) => (
 );
 
 export const AnnouncementsPage: React.FC = () => {
-  const items = React.useMemo(() => loadPublishedAnnouncements(), []);
+  const { data: items } = useSWR('published-announcements', () => loadPublishedAnnouncements(), {
+    fallbackData: [],
+  });
 
   return (
     <div className="min-h-screen bg-[#050D1F] font-sans">
