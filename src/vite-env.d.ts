@@ -2,7 +2,9 @@
 
 interface ImportMetaEnv {
   readonly SUPABASE_URL?: string;
+  readonly SUPABASE_URL_2?: string;
   readonly SUPABASE_PUBLISHABLE_KEY?: string;
+  readonly SUPABASE_PUBLISHABLE_KEY_2?: string;
   readonly VITE_SUPABASE_URL?: string;
   readonly VITE_SUPABASE_ANON_KEY?: string;
   readonly VITE_NEEDLE_API_URL?: string;

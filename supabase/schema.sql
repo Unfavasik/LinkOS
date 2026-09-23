@@ -1,19 +1,38 @@
--- LinkOS — Production Supabase Schema & Row Level Security (RLS)
--- Run this SQL in your Supabase SQL Editor (https://app.supabase.com)
+-- ============================================================
+-- LinkOS — complete Supabase schema (new project setup)
+-- Run this whole file in: Supabase Dashboard → SQL Editor → New query → Run
+-- Safe to re-run: uses IF NOT EXISTS / ON CONFLICT DO NOTHING.
+-- ============================================================
 
--- 1. EXTENSIONS
-create extension if not exists "uuid-ossp";
+-- ---------- Extensions ----------
+create extension if not exists "pgcrypto";
 
--- 2. PROFILES TABLE
+-- ---------- Enums ----------
+do $$ begin
+  create type public.user_role as enum ('user', 'admin', 'owner', 'support');
+exception when duplicate_object then null; end $$;
+
+-- ============================================================
+-- 1. profiles — business pages (id is client-generated text)
+-- ============================================================
 create table if not exists public.profiles (
-  id text primary key default uuid_generate_v4()::text,
-  user_id uuid references auth.users(id) on delete cascade,
-  business_name text not null,
-  username text unique not null,
+  id text primary key,
+  user_id text,
+  business_name text,
+  username text,
   category text,
   description text,
   logo_url text,
   cover_url text,
+  avatar_url text,
+  bio text,
+  role text,
+  github text,
+  business_hours jsonb,
+  gallery jsonb,
+  stats jsonb,
+  service_tags jsonb,
+  twitter text,
   phone text,
   whatsapp text,
   whatsapp_message text,
@@ -22,212 +41,291 @@ create table if not exists public.profiles (
   address text,
   city text,
   state text,
-  country text default 'India',
+  country text,
   theme text default 'neutral',
-  accent_color text default '#18181B',
+  accent_color text default '#2563EB',
   button_style text default 'rounded',
   font_family text default 'inter',
+  theme_mode text,
+  template_id text,
+  layout text,
+  whatsapp_enabled boolean,
   plan text default 'free',
   verified boolean default false,
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
-  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+  instagram text,
+  facebook text,
+  youtube text,
+  google_maps_url text,
+  custom_links jsonb,
+  queue_enabled boolean default false,
+  services jsonb,
+  service_details jsonb,
+  reviews jsonb,
+  social_links jsonb,
+  quick_actions jsonb,
+  pin_code text,
+  is_published boolean default false,
+  is_suspended boolean default false,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+create index if not exists profiles_username_idx on public.profiles (username);
+create index if not exists profiles_user_id_idx on public.profiles (user_id);
+
+-- ============================================================
+-- 2. public_profiles — public view of profiles (anon-readable)
+-- ============================================================
+create or replace view public.public_profiles
+with (security_invoker = false) as
+select
+  id, user_id, business_name, username, category, description,
+  logo_url, cover_url, avatar_url, bio, business_hours, gallery,
+  stats, service_tags, phone, whatsapp, whatsapp_message, email,
+  website, address, city, state, country, theme, accent_color,
+  button_style, font_family, theme_mode, template_id, layout,
+  whatsapp_enabled, plan, verified, instagram, facebook, youtube,
+  google_maps_url, custom_links, queue_enabled, services,
+  service_details, reviews, social_links, quick_actions,
+  created_at, updated_at
+from public.profiles;
+
+-- ============================================================
+-- 3. user_profiles — per-user account metadata
+-- ============================================================
+create table if not exists public.user_profiles (
+  user_id text primary key,
+  email text,
+  display_name text,
+  avatar_url text,
+  role public.user_role default 'user',
+  location text,
+  phone text,
+  bio text,
+  github_url text,
+  instagram_url text,
+  youtube_url text,
+  social_links jsonb,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
 );
 
--- Index username for sub-millisecond public routing
-create index if not exists idx_profiles_username on public.profiles (lower(username));
-create index if not exists idx_profiles_user_id on public.profiles (user_id);
-
--- 3. PRODUCTS TABLE
+-- ============================================================
+-- 4. products
+-- ============================================================
 create table if not exists public.products (
-  id text primary key default uuid_generate_v4()::text,
-  profile_id text references public.profiles(id) on delete cascade not null,
-  name text not null,
+  id text primary key,
+  profile_id text not null,
+  name text,
   description text,
-  price numeric(10, 2) not null default 0.00,
-  currency text default '₹',
+  price numeric default 0,
+  currency text default 'INR',
   image_url text,
   category text,
   available boolean default true,
   featured boolean default false,
   sort_order integer default 0,
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
-  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+  discount_pct numeric,
+  offer_price numeric,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
 );
+create index if not exists products_profile_idx on public.products (profile_id);
 
-create index if not exists idx_products_profile_id on public.products (profile_id);
-
--- 4. LINKS TABLE
+-- ============================================================
+-- 5. links
+-- ============================================================
 create table if not exists public.links (
-  id text primary key default uuid_generate_v4()::text,
-  profile_id text references public.profiles(id) on delete cascade not null,
-  title text not null,
-  url text not null,
-  icon text default 'link',
+  id text primary key,
+  profile_id text not null,
+  title text,
+  url text,
+  icon text,
   sort_order integer default 0,
   is_active boolean default true,
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+  created_at timestamptz default now()
 );
+create index if not exists links_profile_idx on public.links (profile_id);
 
-create index if not exists idx_links_profile_id on public.links (profile_id);
-
--- 5. ANALYTICS EVENTS TABLE
+-- ============================================================
+-- 6. analytics_events
+-- ============================================================
 create table if not exists public.analytics_events (
-  id text primary key default uuid_generate_v4()::text,
-  profile_id text references public.profiles(id) on delete cascade not null,
-  event_type text not null, -- 'page_view', 'whatsapp_click', 'call_click', 'directions_click', 'product_click', 'link_click', 'qr_visit'
-  metadata jsonb default '{}'::jsonb,
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+  id text primary key,
+  profile_id text not null,
+  event_type text not null,
+  metadata jsonb,
+  created_at timestamptz default now()
 );
+create index if not exists analytics_profile_idx on public.analytics_events (profile_id);
+create index if not exists analytics_created_idx on public.analytics_events (created_at);
 
-create index if not exists idx_analytics_profile_id on public.analytics_events (profile_id);
-create index if not exists idx_analytics_created_at on public.analytics_events (created_at);
-
--- 6. CUSTOMERS TABLE
+-- ============================================================
+-- 7. customers
+-- ============================================================
 create table if not exists public.customers (
-  id text primary key default uuid_generate_v4()::text,
-  profile_id text references public.profiles(id) on delete cascade not null,
-  name text not null,
+  id text primary key,
+  profile_id text not null,
+  name text,
   phone text,
   email text,
   notes text,
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+  total_orders integer default 0,
+  total_spent numeric default 0,
+  last_order_at timestamptz,
+  created_at timestamptz default now()
 );
+create index if not exists customers_profile_idx on public.customers (profile_id);
 
-create index if not exists idx_customers_profile_id on public.customers (profile_id);
-
--- 7. ORDERS TABLE
+-- ============================================================
+-- 8. orders
+-- ============================================================
 create table if not exists public.orders (
-  id text primary key default uuid_generate_v4()::text,
-  profile_id text references public.profiles(id) on delete cascade not null,
-  customer_id text references public.customers(id) on delete set null,
+  id text primary key,
+  profile_id text not null,
+  customer_id text,
   customer_name text,
   customer_phone text,
-  items jsonb default '[]'::jsonb,
-  status text default 'pending', -- 'pending', 'confirmed', 'completed', 'cancelled'
-  total numeric(10, 2) default 0.00,
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+  product_name text,
+  total_amount numeric default 0,
+  notes text,
+  items jsonb,
+  status text default 'pending',
+  total numeric,
+  created_at timestamptz default now()
+);
+create index if not exists orders_profile_idx on public.orders (profile_id);
+
+-- ============================================================
+-- 9. queue_entries — live service queue
+-- ============================================================
+create table if not exists public.queue_entries (
+  id text primary key,
+  profile_id text not null,
+  token integer,
+  customer_name text,
+  customer_phone text,
+  service_name text,
+  service_minutes integer default 0,
+  status text default 'waiting',
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+create index if not exists queue_profile_idx on public.queue_entries (profile_id);
+
+-- ============================================================
+-- 10. admins — admin panel access (uuid ids, DB-generated)
+-- ============================================================
+create table if not exists public.admins (
+  id uuid primary key default gen_random_uuid(),
+  email text unique not null,
+  role text default 'admin',
+  is_active boolean default true,
+  display_name text,
+  avatar_url text,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
 );
 
-create index if not exists idx_orders_profile_id on public.orders (profile_id);
+-- ============================================================
+-- 11. admin_invites — pending admin invitations
+-- ============================================================
+create table if not exists public.admin_invites (
+  id uuid primary key default gen_random_uuid(),
+  email text not null,
+  role text default 'admin',
+  status text default 'pending',
+  invited_by text,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+create index if not exists admin_invites_email_idx on public.admin_invites (email);
 
--- ====================================================================
--- ROW LEVEL SECURITY (RLS) POLICIES
--- ====================================================================
+-- ============================================================
+-- 12. support_tickets
+-- ============================================================
+create table if not exists public.support_tickets (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid,
+  email text,
+  name text,
+  subject text,
+  message text,
+  category text,
+  status text default 'open',
+  priority text default 'normal',
+  admin_response text,
+  metadata jsonb,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
 
-alter table public.profiles enable row level security;
-alter table public.products enable row level security;
-alter table public.links enable row level security;
-alter table public.analytics_events enable row level security;
-alter table public.customers enable row level security;
-alter table public.orders enable row level security;
+-- ============================================================
+-- 13. feedback
+-- ============================================================
+create table if not exists public.feedback (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid,
+  email text,
+  name text,
+  feedback_type text default 'general',
+  message text,
+  rating integer,
+  page_url text,
+  status text default 'new',
+  admin_response text,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
 
--- PROFILES POLICIES
--- Anyone can view profiles (needed for public pages)
-create policy "Allow public view for profiles"
-  on public.profiles for select
-  using (true);
+-- ============================================================
+-- 14. templates — admin-editable template overrides
+-- ============================================================
+create table if not exists public.templates (
+  id text primary key,
+  name text,
+  description text,
+  category text,
+  theme text,
+  accent_color text,
+  button_style text,
+  font_family text,
+  layout text,
+  services jsonb,
+  cover_url text,
+  preview_url text,
+  popularity integer default 0,
+  is_pro boolean default false,
+  is_active boolean default true,
+  tags jsonb,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
 
--- Authenticated owner can insert their own profile
-create policy "Allow user to create their own profile"
-  on public.profiles for insert
-  with check (auth.uid() = user_id or auth.uid() is not null);
+-- ============================================================
+-- GRANTS — anon + authenticated full DML (matches the previous
+-- project where RLS was disabled). service_role always has access.
+-- ============================================================
+grant usage on schema public to anon, authenticated, service_role;
+grant select, insert, update, delete on all tables in schema public to anon, authenticated, service_role;
+grant select on public.public_profiles to anon, authenticated, service_role;
+grant usage, select on all sequences in schema public to anon, authenticated, service_role;
+alter default privileges in schema public
+  grant select, insert, update, delete on tables to anon, authenticated, service_role;
 
--- Authenticated owner can update their own profile
-create policy "Allow user to update their own profile"
-  on public.profiles for update
-  using (auth.uid() = user_id);
+-- ============================================================
+-- SEED — owner admin + templates
+-- ============================================================
+insert into public.admins (email, role, is_active, display_name)
+values ('hello.devasik@gmail.com', 'owner', true, 'Dev asik')
+on conflict (email) do nothing;
 
--- Authenticated owner can delete their own profile
-create policy "Allow user to delete their own profile"
-  on public.profiles for delete
-  using (auth.uid() = user_id);
+insert into public.admins (email, role, is_active, display_name)
+values ('ayatulsekh3037@gmail.com', 'admin', true, 'Ayatul')
+on conflict (email) do nothing;
 
--- PRODUCTS POLICIES
--- Anyone can view available products for public storefront
-create policy "Allow public view for available products"
-  on public.products for select
-  using (true);
-
--- Authenticated owner can manage products
-create policy "Allow owner to insert products"
-  on public.products for insert
-  with check (
-    profile_id in (select id from public.profiles where user_id = auth.uid())
-  );
-
-create policy "Allow owner to update products"
-  on public.products for update
-  using (
-    profile_id in (select id from public.profiles where user_id = auth.uid())
-  );
-
-create policy "Allow owner to delete products"
-  on public.products for delete
-  using (
-    profile_id in (select id from public.profiles where user_id = auth.uid())
-  );
-
--- LINKS POLICIES
-create policy "Allow public view for active links"
-  on public.links for select
-  using (true);
-
-create policy "Allow owner to manage links"
-  on public.links for all
-  using (
-    profile_id in (select id from public.profiles where user_id = auth.uid())
-  );
-
--- ANALYTICS EVENTS POLICIES
--- Anyone (visitors) can insert analytics events
-create policy "Allow public to record analytics events"
-  on public.analytics_events for insert
-  with check (true);
-
--- Only profile owners can view analytics
-create policy "Allow profile owner to read analytics"
-  on public.analytics_events for select
-  using (
-    profile_id in (select id from public.profiles where user_id = auth.uid())
-  );
-
--- CUSTOMERS & ORDERS POLICIES
-create policy "Allow owner to manage customers"
-  on public.customers for all
-  using (
-    profile_id in (select id from public.profiles where user_id = auth.uid())
-  );
-
-create policy "Allow public to insert orders/enquiries"
-  on public.orders for insert
-  with check (true);
-
-create policy "Allow owner to manage orders"
-  on public.orders for all
-  using (
-    profile_id in (select id from public.profiles where user_id = auth.uid())
-  );
-
--- ====================================================================
--- STORAGE BUCKETS (logos, products)
--- ====================================================================
--- Run in Supabase SQL editor to create public buckets:
-insert into storage.buckets (id, name, public)
-values ('logos', 'logos', true), ('products', 'products', true)
+insert into public.templates (id, name, is_active, popularity)
+values
+  ('cafe-pro', 'Cafe Pro', true, 90),
+  ('autocare-pro', 'AutoCare Pro', true, 75),
+  ('godi-royal', 'Godi Royal', true, 70)
 on conflict (id) do nothing;
-
-create policy "Allow public read of logos"
-  on storage.objects for select
-  using (bucket_id = 'logos');
-
-create policy "Allow authenticated upload of logos"
-  on storage.objects for insert
-  with check (bucket_id = 'logos' and auth.role() = 'authenticated');
-
-create policy "Allow public read of products"
-  on storage.objects for select
-  using (bucket_id = 'products');
-
-create policy "Allow authenticated upload of products"
-  on storage.objects for insert
-  with check (bucket_id = 'products' and auth.role() = 'authenticated');
