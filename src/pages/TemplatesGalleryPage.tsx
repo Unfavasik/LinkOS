@@ -33,6 +33,7 @@ import { StorageService } from '../lib/storage';
 import { TemplateApplyWizard } from '../components/templates/TemplateApplyWizard';
 import { SeoHead } from '../components/common/SeoHead';
 import { coverFor } from '../data/templateCovers';
+import type { Profile } from '../types';
 
 /* Filter pills — mirrors the design's category row */
 const CATEGORY_PILLS: { label: string; icon: React.ElementType; match: TemplateCategory | 'All' }[] = [
@@ -70,6 +71,12 @@ export const TemplatesGalleryPage: React.FC = () => {
   const [category, setCategory] = useState<'All' | TemplateCategory>('All');
   const [showAllCategories, setShowAllCategories] = useState(false);
   const [wizardTemplate, setWizardTemplate] = useState<PageTemplate | null>(null);
+  // Prefill the apply wizard with the signed-in user's My Page data so
+  // creating a website starts from everything they already filled in.
+  const [userProfile, setUserProfile] = useState<Profile | null>(null);
+  React.useEffect(() => {
+    StorageService.getCurrentUserProfile().then(setUserProfile).catch(() => {});
+  }, []);
   const [paywall, setPaywall] = useState<{ name: string; id: string } | null>(null);
   const { data: overrides } = useTemplateOverrides();
 
@@ -321,7 +328,7 @@ export const TemplatesGalleryPage: React.FC = () => {
       {wizardTemplate && (
         <TemplateApplyWizard
           template={wizardTemplate}
-          existingProfile={null}
+          existingProfile={userProfile}
           onClose={() => setWizardTemplate(null)}
           onPublished={() => setWizardTemplate(null)}
         />
