@@ -41,6 +41,7 @@ import {
 } from 'lucide-react';
 import { LinkOsLogo } from '../components/common/LinkOsLogo';
 import { StorageService } from '../lib/storage';
+import { useUploadProgress, UploadProgressBar } from '../components/UploadProgressBar';
 import { TEMPLATES, TEMPLATE_CATEGORIES, getTemplateById } from '../data/templates';
 import { Profile, Product, Review } from '../types';
 
@@ -236,10 +237,13 @@ export const OnboardingWizard: React.FC = () => {
     setReviewForm({ author_name: '', rating: 5, text: '' });
   };
 
+  const up = useUploadProgress();
+
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, target: 'logo' | 'cover') => {
-    if (e.target.files && e.target.files[0]) {
+    const file = e.target.files?.[0];
+    if (file) {
       try {
-        const url = await StorageService.uploadImage(e.target.files[0], 'logos');
+        const url = await up.run('Processing image…', (report) => StorageService.uploadImage(file, 'logos', report));
         if (target === 'logo') setLogoUrl(url);
         else setCoverUrl(url);
       } catch (err: any) {
@@ -353,6 +357,11 @@ export const OnboardingWizard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#FAFAFA] flex flex-col">
+      <UploadProgressBar
+        {...up}
+        tone="light"
+        className="fixed bottom-4 left-1/2 z-50 w-64 -translate-x-1/2 rounded-xl border border-zinc-200 bg-white/95 p-3 shadow-xl"
+      />
       {/* Header */}
       <header className="sticky top-0 z-30 bg-white border-b border-zinc-100">
         <div className="max-w-2xl mx-auto w-full flex items-center justify-between px-4 h-14">
@@ -823,9 +832,10 @@ export const OnboardingWizard: React.FC = () => {
                       accept="image/*"
                       className="sr-only"
                       onChange={async (e) => {
-                        if (e.target.files && e.target.files[0]) {
+                        const file = e.target.files?.[0];
+                        if (file) {
                           try {
-                            const url = await StorageService.uploadImage(e.target.files[0], 'products');
+                            const url = await up.run('Processing image…', (report) => StorageService.uploadImage(file, 'products', report));
                             setServiceForm((f) => ({ ...f, image: url }));
                           } catch {
                             setServiceForm((f) => ({ ...f, image: SERVICE_IMAGES[Math.floor(Math.random() * SERVICE_IMAGES.length)] }));

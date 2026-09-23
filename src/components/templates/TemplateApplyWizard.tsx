@@ -35,6 +35,7 @@ import {
 } from 'lucide-react';
 import { Profile, Product, Review } from '../../types';
 import { StorageService } from '../../lib/storage';
+import { useUploadProgress, UploadProgressBar } from '../UploadProgressBar';
 import { PageTemplate, TEMPLATE_CATEGORIES } from '../../data/templates';
 import { TemplatePreview } from './TemplatePreview';
 import { GoogleMapEmbed, buildMapQuery, isValidMapsLink } from '../common/GoogleMapEmbed';
@@ -174,7 +175,7 @@ export const TemplateApplyWizard: React.FC<TemplateApplyWizardProps> = ({
   const logoInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
-  const [uploadingImage, setUploadingImage] = useState(false);
+
 
   // ---- Step 2: Contact & Location ----
   const [phone, setPhone] = useState(existingProfile?.phone || '');
@@ -285,16 +286,16 @@ export const TemplateApplyWizard: React.FC<TemplateApplyWizardProps> = ({
   };
 
   /* Upload file functionality */
+  const up = useUploadProgress();
+  const uploadingImage = up.active;
+
   const uploadFile = async (file: File | undefined): Promise<string | null> => {
     if (!file) return null;
-    setUploadingImage(true);
     try {
-      return await StorageService.uploadImage(file, 'products');
+      return await up.run('Processing image…', (report) => StorageService.uploadImage(file, 'products', report));
     } catch (err) {
       console.error('Image upload failed:', err);
       return null;
-    } finally {
-      setUploadingImage(false);
     }
   };
 
@@ -312,12 +313,21 @@ export const TemplateApplyWizard: React.FC<TemplateApplyWizardProps> = ({
 
   const handleGalleryUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []).slice(0, 20 - gallery.length);
-    setUploadingImage(true);
     try {
-      const urls = await Promise.all(files.map((f) => StorageService.uploadImage(f, 'products')));
-      setGallery((g) => [...g, ...urls.filter(Boolean)] as string[]);
+      const urls = await up.run(`Processing ${files.length} image${files.length === 1 ? '' : 's'}…`, async (report) => {
+        const out: string[] = [];
+        for (let i = 0; i < files.length; i++) {
+          const u = await StorageService.uploadImage(files[i], 'products', (p) =>
+            report(Math.round(((i + p / 100) / files.length) * 100)),
+          );
+          if (u) out.push(u);
+        }
+        return out;
+      });
+      setGallery((g) => [...g, ...urls] as string[]);
+    } catch (err) {
+      console.error('Gallery upload failed:', err);
     } finally {
-      setUploadingImage(false);
       e.target.value = '';
     }
   };
@@ -573,6 +583,11 @@ export const TemplateApplyWizard: React.FC<TemplateApplyWizardProps> = ({
   /* Main wizard */
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6">
+      <UploadProgressBar
+        {...up}
+        tone="light"
+        className="fixed bottom-4 left-1/2 z-[60] w-64 -translate-x-1/2 rounded-xl border border-zinc-200 bg-white/95 p-3 shadow-xl"
+      />
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl max-h-[94vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="px-5 sm:px-7 pt-5 pb-4 border-b border-zinc-100 flex items-start justify-between gap-4 shrink-0">

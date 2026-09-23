@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { X, Camera, Loader2, Check } from 'lucide-react';
 import { StorageService } from '../../lib/storage';
+import { useUploadProgress, UploadProgressBar } from '../UploadProgressBar';
 import { AdminAvatarCropper } from './AdminAvatarCropper';
 import { updateAdminProfile, type AdminRecord } from '../../lib/adminAuth';
 
@@ -19,7 +20,8 @@ export const AdminEditProfileModal: React.FC<AdminEditProfileModalProps> = ({
 }) => {
   const [name, setName] = useState('');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
+  const up = useUploadProgress();
+  const uploading = up.active;
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
@@ -52,14 +54,11 @@ export const AdminEditProfileModal: React.FC<AdminEditProfileModalProps> = ({
 
   const handleCropConfirm = async (webpFile: File) => {
     setPendingFile(null);
-    setUploading(true);
     try {
-      const url = await StorageService.uploadImage(webpFile, 'avatars');
+      const url = await up.run('Processing photo…', (report) => StorageService.uploadImage(webpFile, 'avatars', report));
       setAvatarUrl(url);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Upload failed');
-    } finally {
-      setUploading(false);
     }
   };
 
@@ -154,6 +153,7 @@ export const AdminEditProfileModal: React.FC<AdminEditProfileModalProps> = ({
           <p className="text-[11px] text-slate-500">
             {uploading ? 'Uploading...' : 'Click the avatar to upload — crop, then saved as WebP'}
           </p>
+          <UploadProgressBar {...up} className="w-full" />
           <input
             ref={fileRef}
             type="file"

@@ -1,6 +1,6 @@
 import { Profile, Product, LinkItem, AnalyticsEvent, AnalyticsSummary, Customer, Order, EventType, QueueEntry, QueueEntryStatus } from '../types';
 import { DEMO_PROFILE, DEMO_PRODUCTS, DEMO_LINKS, DEMO_ANALYTICS_EVENTS, DEMO_CUSTOMERS, DEMO_ORDERS } from '../data/demoData';
-import { supabase, isSupabaseConfigured } from './supabase';
+import { supabase, isSupabaseConfigured, supabaseUrl, supabaseAnonKey } from './supabase';
 import { ensureWebp } from './imageConvert';
 import { toUserProfilesRow, applyUserProfilesRow, type UserProfileRow } from './userProfiles';
 
@@ -50,6 +50,36 @@ export interface ActiveUser {
   business_name?: string;
   username?: string;
   plan?: string;
+}
+
+/* XHR upload so callers get real byte progress — supabase-js's fetch-based
+   upload cannot report progress events. Mirrors storage.upload() headers. */
+async function uploadWithProgress(
+  bucket: string,
+  path: string,
+  body: Blob,
+  onProgress?: (pct: number) => void,
+  contentType?: string,
+): Promise<void> {
+  if (!supabase) throw new Error('storage not configured');
+  const token = (await supabase.auth.getSession()).data.session?.access_token ?? supabaseAnonKey;
+  await new Promise<void>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `${supabaseUrl}/storage/v1/object/${bucket}/${path}`);
+    xhr.setRequestHeader('apikey', supabaseAnonKey);
+    xhr.setRequestHeader('authorization', `Bearer ${token}`);
+    xhr.setRequestHeader('x-upsert', 'true');
+    xhr.setRequestHeader('cache-control', '3600');
+    if (contentType) xhr.setRequestHeader('content-type', contentType);
+    if (onProgress) {
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
+      };
+    }
+    xhr.onload = () => (xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(`Upload failed (${xhr.status})`)));
+    xhr.onerror = () => reject(new Error('Upload failed'));
+    xhr.send(body);
+  });
 }
 
 export const StorageService = {
@@ -871,7 +901,7 @@ export const StorageService = {
   },
 
   // --- FILE UPLOAD ---
-  async uploadImage(file: File, bucket: 'logos' | 'products' | 'avatars' = 'products'): Promise<string> {
+  async uploadImage(file: File, bucket: 'logos' | 'products' | 'avatars' = 'products', onProgress?: (pct: number) => void): Promise<string> {
     // Validate file type
     const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml'];
     if (!validTypes.includes(file.type)) {
@@ -888,6 +918,7 @@ export const StorageService = {
     // pre-cropped; covers/gallery/products are converted here with their
     // aspect ratio preserved.
     const stored = await ensureWebp(file);
+    onProgress?.(15);
 
     if (isSupabaseConfigured && supabase) {
       try {
@@ -896,19 +927,18 @@ export const StorageService = {
         const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
         const filePath = `${fileName}`;
 
-        const { error: uploadError } = await supabase.storage
-          .from(targetBucket)
-          .upload(filePath, stored, { cacheControl: '3600', upsert: true });
-
-        if (!uploadError) {
-          const { data } = supabase.storage.from(targetBucket).getPublicUrl(filePath);
-          if (data?.publicUrl) return data.publicUrl;
+        await uploadWithProgress(targetBucket, filePath, stored, onProgress ? (p) => onProgress(15 + Math.round(p * 0.8)) : undefined);
+        const { data } = supabase.storage.from(targetBucket).getPublicUrl(filePath);
+        if (data?.publicUrl) {
+          onProgress?.(100);
+          return data.publicUrl;
         }
       } catch (err) {
         console.warn('Supabase storage upload failed, falling back to local file reader:', err);
       }
     }
 
+    onProgress?.(100);
     // Local fallback: convert to Data URL for instant rendering & preservation
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -918,7 +948,7 @@ export const StorageService = {
     });
   },
 
-  async uploadVideo(file: File, bucket: 'logos' | 'products' | 'avatars' = 'products'): Promise<string> {
+  async uploadVideo(file: File, bucket: 'logos' | 'products' | 'avatars' = 'products', onProgress?: (pct: number) => void): Promise<string> {
     const validTypes = ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-matroska', 'video/ogg'];
     if (!validTypes.includes(file.type)) {
       throw new Error('Unsupported video format. Please upload MP4, WEBM, MOV, or MKV.');
@@ -981,6 +1011,10 @@ export const StorageService = {
         };
 
         video.currentTime = 0;
+        // Conversion is real-time playback; report it as the first half of the bar.
+        video.ontimeupdate = () => {
+          if (video.duration) onProgress?.(Math.round((video.currentTime / video.duration) * 50));
+        };
         try {
           await video.play();
         } catch {
@@ -1011,19 +1045,18 @@ export const StorageService = {
         const fileExt = stored.name.split('.').pop();
         const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
 
-        const { error: uploadError } = await supabase.storage
-          .from(targetBucket)
-          .upload(fileName, stored, { cacheControl: '3600', upsert: true, contentType: stored.type });
-
-        if (!uploadError) {
-          const { data } = supabase.storage.from(targetBucket).getPublicUrl(fileName);
-          if (data?.publicUrl) return data.publicUrl;
+        await uploadWithProgress(targetBucket, fileName, stored, onProgress ? (p) => onProgress(50 + Math.round(p * 0.5)) : undefined, stored.type);
+        const { data } = supabase.storage.from(targetBucket).getPublicUrl(fileName);
+        if (data?.publicUrl) {
+          onProgress?.(100);
+          return data.publicUrl;
         }
       } catch (err) {
         console.warn('Supabase video upload failed, falling back to local file reader:', err);
       }
     }
 
+    onProgress?.(100);
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(reader.result as string);

@@ -4,12 +4,12 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 // (SUPABASE_SECRET_KEY) belong exclusively in server-side environments.
 // The active project is the "_2" Supabase project; fall back to the base
 // pair and then the legacy VITE_ names.
-const supabaseUrl =
+export const supabaseUrl =
   import.meta.env.SUPABASE_URL_2 ||
   import.meta.env.SUPABASE_URL ||
   import.meta.env.VITE_SUPABASE_URL ||
   '';
-const supabaseAnonKey =
+export const supabaseAnonKey =
   import.meta.env.SUPABASE_PUBLISHABLE_KEY_2 ||
   import.meta.env.SUPABASE_PUBLISHABLE_KEY ||
   import.meta.env.VITE_SUPABASE_ANON_KEY ||

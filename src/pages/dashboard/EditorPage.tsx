@@ -46,6 +46,7 @@ import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { updateTemplate, type TemplateOverride, type TemplateServices } from '../../lib/templateService';
 import { Profile, Product } from '../../types';
 import { DEMO_REVIEWS } from '../../data/demoData';
+import { useUploadProgress, UploadProgressBar } from '../../components/UploadProgressBar';
 
 const CATEGORY_OPTIONS = [
   'Café & Restaurant',
@@ -303,9 +304,11 @@ export const EditorPage: React.FC<{ templateMode?: boolean }> = ({ templateMode 
     setTimeout(() => setCopied(false), 1500);
   };
 
+  const up = useUploadProgress();
+
   const upload = async (file: File, apply: (url: string) => void) => {
     try {
-      const url = await StorageService.uploadImage(file, 'products');
+      const url = await up.run('Processing image…', (report) => StorageService.uploadImage(file, 'products', report));
       apply(url);
     } catch (err: any) {
       console.error('[v0] Image upload failed:', err);
@@ -350,7 +353,7 @@ export const EditorPage: React.FC<{ templateMode?: boolean }> = ({ templateMode 
 
   const uploadProductPhoto = async (productId: string, file: File) => {
     try {
-      const url = await StorageService.uploadImage(file, 'products');
+      const url = await up.run('Processing image…', (report) => StorageService.uploadImage(file, 'products', report));
       if (productId === 'draft_initial') {
         handleProductChange('draft_initial', { image_url: url });
       } else {
@@ -437,7 +440,7 @@ export const EditorPage: React.FC<{ templateMode?: boolean }> = ({ templateMode 
 
   const uploadServiceImage = async (file: File) => {
     try {
-      const url = await StorageService.uploadImage(file, 'products');
+      const url = await up.run('Processing image…', (report) => StorageService.uploadImage(file, 'products', report));
       setNewSvcImage(url);
     } catch (err: any) {
       console.error('[v0] Service image upload failed:', err);
@@ -505,6 +508,10 @@ export const EditorPage: React.FC<{ templateMode?: boolean }> = ({ templateMode 
 
   return (
     <div className="mx-auto max-w-lg pb-10">
+      <UploadProgressBar
+        {...up}
+        className="fixed bottom-4 left-1/2 z-50 w-64 -translate-x-1/2 rounded-xl border border-white/10 bg-slate-900/95 p-3 shadow-xl"
+      />
       {/* ── Header ── */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">

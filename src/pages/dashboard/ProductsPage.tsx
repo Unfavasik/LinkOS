@@ -13,6 +13,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { StorageService } from '../../lib/storage';
+import { useUploadProgress, UploadProgressBar } from '../../components/UploadProgressBar';
 import { Profile, Product } from '../../types';
 
 export const ProductsPage: React.FC = () => {
@@ -102,10 +103,13 @@ export const ProductsPage: React.FC = () => {
     loadProducts();
   };
 
+  const up = useUploadProgress();
+
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
+    const file = e.target.files?.[0];
+    if (file) {
       try {
-        const url = await StorageService.uploadImage(e.target.files[0], 'products');
+        const url = await up.run('Processing image…', (report) => StorageService.uploadImage(file, 'products', report));
         setFormData((prev) => ({ ...prev, image_url: url }));
       } catch (err: any) {
         alert(err.message || 'Image upload failed');
@@ -412,6 +416,7 @@ export const ProductsPage: React.FC = () => {
                       className="hidden"
                     />
                   </label>
+                  <UploadProgressBar {...up} tone="light" className="w-full" />
                 </div>
               </div>
 
