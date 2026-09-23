@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
+  Globe,
   Smartphone,
   Package,
   ShoppingBag,
@@ -91,6 +92,7 @@ export const DashboardLayout: React.FC = () => {
 
   const navItems = [
     { label: 'Overview', path: '/dashboard', icon: LayoutDashboard, exact: true },
+    { label: 'My Websites', path: '/dashboard/websites', icon: Globe },
     { label: 'My Page', path: '/dashboard/editor', icon: Smartphone },
     { label: 'Templates', path: '/dashboard/templates', icon: LayoutTemplate },
     { label: 'Products', path: '/dashboard/products', icon: Package },

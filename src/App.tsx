@@ -33,6 +33,10 @@ import { AdminSectionGuard as Guard } from './pages/admin/AdminSectionGuard';
 import { TemplateDetailPage } from './pages/TemplateDetailPage';
 import { TemplatePreviewPage } from './pages/TemplatePreviewPage';
 import { PublicProfilePage } from './pages/PublicProfilePage';
+import { PublicWebsitePage } from './pages/PublicWebsitePage';
+import { MyWebsitesPage } from './pages/dashboard/MyWebsitesPage';
+import { CreateWebsitePage } from './pages/dashboard/CreateWebsitePage';
+import { WebsiteManagePage } from './pages/dashboard/WebsiteManagePage';
 import { LoginPage } from './pages/LoginPage';
 import { SignupPage } from './pages/SignupPage';
 import { OnboardingWizard } from './pages/OnboardingWizard';
@@ -183,6 +187,10 @@ export default function App() {
           <Route index element={<OverviewPage />} />
           <Route path="pages/:pageId" element={<PageDetailPage />} />
           <Route path="editor" element={<EditorPage />} />
+          <Route path="websites" element={<MyWebsitesPage />} />
+          <Route path="websites/new" element={<CreateWebsitePage />} />
+          <Route path="websites/:websiteId" element={<WebsiteManagePage />} />
+          <Route path="websites/:websiteId/edit" element={<EditorPage websiteMode />} />
           <Route path="templates" element={<TemplatesPage />} />
           <Route path="products" element={<ProductsPage />} />
           <Route path="orders" element={<OrdersPage />} />
@@ -196,6 +204,7 @@ export default function App() {
         </Route>
 
         {/* Public Mobile-First Business Page */}
+        <Route path="/site/:slug" element={<PublicWebsitePage />} />
         <Route path="/:username" element={<PublicProfilePage />} />
 
         {/* Catch all fallback */}
