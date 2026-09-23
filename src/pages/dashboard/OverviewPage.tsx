@@ -1,0 +1,274 @@
+import React, { useEffect, useState } from 'react';
+import { Link, useOutletContext } from 'react-router-dom';
+import {
+  FileText,
+  Eye,
+  Link2,
+  TrendingUp,
+  Plus,
+  Crown,
+  MoreVertical,
+  Star,
+  Copy,
+  Check,
+  LayoutTemplate,
+  BarChart3,
+  QrCode,
+  ArrowRight,
+  Share2,
+  UserPen,
+} from 'lucide-react';
+import { Profile } from '../../types';
+import { ShareModal } from '../../components/profile/ShareModal';
+import { StorageService } from '../../lib/storage';
+import { buildPagesFromProfile } from './pagesData';
+
+export const OverviewPage: React.FC = () => {
+  const { profile } = useOutletContext<{ profile: Profile | null; setProfile: (p: Profile | null) => void }>();
+  const [isShareOpen, setIsShareOpen] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [liveStats, setLiveStats] = useState<{ views: string; clicks: string } | null>(null);
+
+  const pages = buildPagesFromProfile(profile);
+
+  // Real analytics for the signed-in user's page (demo fallback keeps its sample numbers)
+  useEffect(() => {
+    let mounted = true;
+    if (!profile) {
+      setLiveStats(null);
+      return;
+    }
+    StorageService.getAnalytics(profile.id)
+      .then((a) => {
+        if (!mounted) return;
+        const fmt = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(1)}K` : String(n));
+        setLiveStats({ views: fmt(a.totalViews), clicks: fmt(a.linkClicks) });
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, [profile]);
+
+  const ownerName = profile?.business_name
+    ? profile.business_name.split(' ').slice(0, 2).join(' ')
+    : 'My Business';
+  const ownerEmail = profile?.email || '';
+  const initials = ownerName.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase();
+  const isPro = profile?.plan === 'pro' || profile?.plan === 'business';
+
+  const handleCopy = (link: string, id: string) => {
+    navigator.clipboard.writeText(`${window.location.origin}/${link.replace('linkos.in/', '')}`);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const stats = [
+    { icon: FileText, value: String(pages.length), label: 'Pages', color: 'text-blue-400' },
+    { icon: Eye, value: liveStats?.views ?? pages[0]?.views ?? '0', label: 'Total Views', color: 'text-sky-400' },
+    { icon: Link2, value: liveStats?.clicks ?? pages[0]?.clicks ?? '0', label: 'Link Clicks', color: 'text-fuchsia-400' },
+    { icon: TrendingUp, value: liveStats ? liveStats.views : '—', label: 'This Month', color: 'text-emerald-400' },
+  ];
+
+  const quickActions = [
+    { icon: Plus, label: 'New Page', to: '/dashboard/templates' },
+    { icon: LayoutTemplate, label: 'Templates', to: '/dashboard/templates' },
+    { icon: BarChart3, label: 'Analytics', to: '/dashboard/analytics' },
+    { icon: QrCode, label: 'My QR Code', to: '/dashboard/qr' },
+  ];
+
+  return (
+    <div className="space-y-5 max-w-2xl">
+      {/* Welcome card */}
+      <section className="rounded-2xl bg-[#0B1424] border border-white/10 p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-3.5">
+            {profile?.avatar_url ? (
+              <img
+                src={profile.avatar_url}
+                alt={`${ownerName} profile photo`}
+                className="w-14 h-14 rounded-full object-cover border-2 border-white/20 shrink-0"
+              />
+            ) : (
+              <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 border-2 border-white/20 flex items-center justify-center text-sm font-extrabold shrink-0">
+                {initials}
+              </div>
+            )}
+            <div>
+              <p className="text-xs text-slate-400">Welcome back,</p>
+              <p className="text-lg font-extrabold leading-tight flex items-center gap-1.5">
+                {ownerName}
+                <span className="w-4 h-4 rounded-full bg-blue-600 flex items-center justify-center" aria-label="Verified">
+                  <svg viewBox="0 0 12 12" className="w-2.5 h-2.5 fill-none stroke-white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2.5 6.5 5 9l4.5-6" /></svg>
+                </span>
+                <Link
+                  to="/dashboard/profile"
+                  aria-label="Edit profile"
+                  className="p-1 rounded-md text-slate-500 hover:text-blue-400 hover:bg-white/5 transition-colors"
+                >
+                  <UserPen className="w-3.5 h-3.5" />
+                </Link>
+              </p>
+              <p className="text-[11px] text-slate-500">{ownerEmail}</p>
+            </div>
+          </div>
+          {isPro && (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 border border-amber-500/30 px-3 py-1.5 text-[11px] font-bold text-amber-400 shrink-0">
+              <Crown className="w-3.5 h-3.5" /> {profile?.plan === 'business' ? 'Business Plan' : 'Pro Plan'}
+            </span>
+          )}
+        </div>
+        <p className="mt-3.5 text-xs text-slate-400 leading-relaxed">
+          Manage your business pages, track performance and grow faster with LinkOS.
+        </p>
+      </section>
+
+      {/* Stats row */}
+      <section className="grid grid-cols-4 gap-2.5">
+        {stats.map(({ icon: Icon, value, label, color }) => (
+          <div key={label} className="rounded-xl bg-[#0B1424] border border-white/10 p-3 flex flex-col items-center text-center gap-1">
+            <Icon className={`w-5 h-5 ${color}`} />
+            <span className="text-base font-extrabold leading-none">{value}</span>
+            <span className="text-[9px] text-slate-500 leading-tight">{label}</span>
+          </div>
+        ))}
+      </section>
+
+      {/* Create New Page */}
+      <Link
+        to="/dashboard/templates"
+        className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold shadow-lg shadow-blue-600/25 transition-colors"
+      >
+        <Plus className="w-4.5 h-4.5" />
+        Create New Page
+      </Link>
+
+      {/* Your Pages */}
+      <section>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-base font-extrabold">Your Pages</h2>
+          <Link to="/dashboard/editor" className="text-xs font-semibold text-blue-400 inline-flex items-center gap-1">
+            View All <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+
+        <div className="space-y-3">
+          {pages.map((page) => (
+            <div key={page.id} className="rounded-2xl bg-[#0B1424] border border-white/10 p-3.5">
+              <div className="flex items-start gap-3">
+                <Link to={`/dashboard/pages/${page.id}`} className="shrink-0">
+                  <img src={page.cover} alt={`${page.name} cover`} className="w-14 h-14 rounded-xl object-cover border border-white/10" />
+                </Link>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <Link to={`/dashboard/pages/${page.id}`} className="text-sm font-extrabold truncate hover:text-blue-400 transition-colors">
+                      {page.name}
+                    </Link>
+                    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold shrink-0 ${
+                      page.status === 'Active'
+                        ? 'bg-emerald-500/15 text-emerald-400'
+                        : 'bg-slate-500/15 text-slate-400'
+                    }`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${page.status === 'Active' ? 'bg-emerald-400' : 'bg-slate-400'}`} />
+                      {page.status}
+                    </span>
+                    <button type="button" aria-label={`Options for ${page.name}`} className="text-slate-500 hover:text-white shrink-0">
+                      <MoreVertical className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleCopy(page.link, page.id)}
+                    className="mt-0.5 text-[11px] text-blue-400 font-medium inline-flex items-center gap-1.5 hover:underline"
+                  >
+                    {page.link}
+                    {copiedId === page.id ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                  </button>
+                  <div className="mt-2 flex items-center gap-4 text-[10px] text-slate-400">
+                    <span className="inline-flex items-center gap-1"><Eye className="w-3.5 h-3.5" /> {liveStats?.views ?? page.views}<span className="text-slate-600">Views</span></span>
+                    <span className="inline-flex items-center gap-1"><Link2 className="w-3.5 h-3.5" /> {liveStats?.clicks ?? page.clicks}<span className="text-slate-600">Clicks</span></span>
+                    <span className="inline-flex items-center gap-1">
+                      {page.rating ? (
+                        <><Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" /> {page.rating}<span className="text-slate-600">Rating</span></>
+                      ) : (
+                        <><Star className="w-3.5 h-3.5 text-slate-600" /> <span className="text-slate-600">Rating</span></>
+                      )}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Upgrade banner */}
+      {!isPro && (
+      <section className="rounded-2xl bg-gradient-to-r from-amber-500/15 via-[#0B1424] to-[#0B1424] border border-amber-500/25 p-4 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <span className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center shrink-0">
+            <Crown className="w-5 h-5 text-amber-400" />
+          </span>
+          <div>
+            <p className="text-sm font-extrabold text-amber-400">Upgrade to Pro</p>
+            <p className="text-[11px] text-slate-400 leading-snug">Get advanced analytics, custom domain, more templates and more.</p>
+          </div>
+        </div>
+        <Link
+          to="/dashboard/settings"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-[#1A1300] px-4 py-2 text-xs font-bold shrink-0 transition-colors"
+        >
+          Upgrade <ArrowRight className="w-3.5 h-3.5" />
+        </Link>
+      </section>
+      )}
+
+      {/* Quick Actions */}
+      <section>
+        <h2 className="text-base font-extrabold mb-3">Quick Actions</h2>
+        <div className="grid grid-cols-4 gap-2.5">
+          {quickActions.map(({ icon: Icon, label, to }) => (
+            <Link
+              key={label}
+              to={to}
+              className="rounded-xl bg-[#0B1424] border border-white/10 p-3 flex flex-col items-center gap-1.5 text-center hover:border-blue-500/40 transition-colors"
+            >
+              <Icon className="w-5 h-5 text-blue-400" />
+              <span className="text-[10px] font-semibold text-slate-300 leading-tight">{label}</span>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      {/* Explore Templates */}
+      <section className="rounded-2xl bg-[#0B1424] border border-white/10 p-4 flex items-center justify-between gap-4 overflow-hidden">
+        <div className="min-w-0">
+          <p className="text-sm font-extrabold flex items-center gap-1.5">
+            <LayoutTemplate className="w-4 h-4 text-blue-400" /> Explore Templates
+          </p>
+          <p className="mt-1 text-[11px] text-slate-400 leading-snug">Choose from 50+ professional templates for your business.</p>
+          <Link
+            to="/dashboard/templates"
+            className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 px-4 py-2 text-xs font-bold transition-colors"
+          >
+            Browse <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+        <div className="hidden sm:flex items-center gap-2 shrink-0 -rotate-3">
+          <img src="/images/cafe/cover.webp" alt="" className="w-16 h-20 rounded-lg object-cover border border-white/10" />
+          <img src="/images/cards/salon.webp" alt="" className="w-16 h-20 rounded-lg object-cover border border-white/10 rotate-6 translate-y-2" />
+        </div>
+      </section>
+
+      {/* Share (header avatar action) */}
+      {profile && (
+        <button type="button" onClick={() => setIsShareOpen(true)} className="sr-only">
+          <Share2 /> Share page
+        </button>
+      )}
+      {profile && (
+        <ShareModal profile={profile} isOpen={isShareOpen} onClose={() => setIsShareOpen(false)} />
+      )}
+    </div>
+  );
+};

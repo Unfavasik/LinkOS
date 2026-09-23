@@ -1,0 +1,290 @@
+import { Profile, Product, LinkItem, AnalyticsEvent, Customer, Order, Review } from '../types';
+
+export const DEMO_PROFILE: Profile = {
+  id: 'profile_anant_1',
+  user_id: 'user_anant_1',
+  business_name: 'Urban Brew Café',
+  username: 'anant',
+  category: 'Café & Restaurant',
+  description: 'Great coffee, delicious food and a cozy ambience. Your everyday escape — freshly brewed coffee, tasty food and a welcoming space in Berhampore.',
+  logo_url: '/images/cafe/logo.webp',
+  cover_url: '/images/cafe/cover.webp',
+  phone: '+91 98321 45678',
+  whatsapp: '+919832145678',
+  whatsapp_message: 'Hi Urban Brew Café! I saw your LinkOS page and would like to enquire about your menu.',
+  email: 'hello@urbanbrewcafe.in',
+  website: 'https://urbanbrewcafe.in',
+  address: 'NH 34 Bypass, Near Cossimbazar Station Road',
+  city: 'Berhampore',
+  state: 'West Bengal',
+  country: 'India',
+  theme: 'neutral',
+  accent_color: '#18181B', // refined near-black graphite
+  button_style: 'rounded',
+  font_family: 'inter',
+  plan: 'pro',
+  verified: true,
+  created_at: new Date(Date.now() - 90 * 86400000).toISOString(),
+  updated_at: new Date().toISOString(),
+};
+
+export const DEMO_PRODUCTS: Product[] = [
+  {
+    id: 'prod_1',
+    profile_id: 'profile_anant_1',
+    name: 'Premium Leatherette Seat Cover',
+    description: 'Ultra-durable nappa-finish automotive vinyl with breathable diamond quilting and high-density foam padding.',
+    price: 6499,
+    currency: '₹',
+    image_url: 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?w=600&auto=format&fit=crop&q=80',
+    category: 'Seat Covers',
+    available: true,
+    featured: true,
+    sort_order: 1,
+    created_at: new Date(Date.now() - 30 * 86400000).toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 'prod_2',
+    profile_id: 'profile_anant_1',
+    name: 'Custom Car Interior Styling',
+    description: 'Full interior transformation including door pad wrapping, dashboard accents, steering wheel cover and gear gaiter.',
+    price: 14999,
+    currency: '₹',
+    image_url: 'https://images.unsplash.com/photo-1563720223185-11003d516935?w=600&auto=format&fit=crop&q=80',
+    category: 'Interiors',
+    available: true,
+    featured: true,
+    sort_order: 2,
+    created_at: new Date(Date.now() - 25 * 86400000).toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 'prod_3',
+    profile_id: 'profile_anant_1',
+    name: '7D Waterproof All-Weather Floor Mat',
+    description: 'Laser-cut 7-layer waterproof floor mats with detachable curly coil top layer. Odorless and easy to wash.',
+    price: 3899,
+    currency: '₹',
+    image_url: 'https://images.unsplash.com/photo-1511919884226-fd3cad34687c?w=600&auto=format&fit=crop&q=80',
+    category: 'Accessories',
+    available: true,
+    featured: false,
+    sort_order: 3,
+    created_at: new Date(Date.now() - 20 * 86400000).toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 'prod_4',
+    profile_id: 'profile_anant_1',
+    name: 'Ergonomic Memory Foam Neck Pillows (Pair)',
+    description: 'Anatomic neck cushion supports cervical spine during long drives. Breathable microfiber casing.',
+    price: 1199,
+    currency: '₹',
+    image_url: 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=600&auto=format&fit=crop&q=80',
+    category: 'Accessories',
+    available: true,
+    featured: false,
+    sort_order: 4,
+    created_at: new Date(Date.now() - 15 * 86400000).toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+];
+
+export const DEMO_LINKS: LinkItem[] = [
+  {
+    id: 'link_1',
+    profile_id: 'profile_anant_1',
+    title: 'Follow our Work on Instagram',
+    url: 'https://instagram.com',
+    icon: 'instagram',
+    sort_order: 1,
+    is_active: true,
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: 'link_2',
+    profile_id: 'profile_anant_1',
+    title: 'Customer Workshop Tours on YouTube',
+    url: 'https://youtube.com',
+    icon: 'youtube',
+    sort_order: 2,
+    is_active: true,
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: 'link_3',
+    profile_id: 'profile_anant_1',
+    title: 'Find us on Google Maps (Workshop)',
+    url: 'https://maps.google.com/?q=Berhampore+West+Bengal',
+    icon: 'map',
+    sort_order: 3,
+    is_active: true,
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: 'link_4',
+    profile_id: 'profile_anant_1',
+    title: 'Official Facebook Page',
+    url: 'https://facebook.com',
+    icon: 'facebook',
+    sort_order: 4,
+    is_active: true,
+    created_at: new Date().toISOString(),
+  },
+];
+
+export const DEMO_REVIEWS: Review[] = [
+  {
+    id: 'rev_1',
+    author_name: 'Subhashish Roy',
+    rating: 5,
+    text: 'Fitted custom seat covers for my Creta 2024. Factory-finish fitting and super comfortable on highway drives. Highly recommended in Berhampore!',
+    date: '2 weeks ago',
+  },
+  {
+    id: 'rev_2',
+    author_name: 'Dr. Tanmoy Banerjee',
+    rating: 5,
+    text: 'Very polite team. Took 4 hours and transformed my Honda City interior. Leather stitching is top notch.',
+    date: '1 month ago',
+  },
+  {
+    id: 'rev_3',
+    author_name: 'Amit Agarwal',
+    rating: 5,
+    text: 'Genuine prices compared to Kolkata stores. Got the 7D floor mats and steering wrap too.',
+    date: '2 months ago',
+  },
+];
+
+export const DEMO_CUSTOMERS: Customer[] = [
+  {
+    id: 'cust_1',
+    profile_id: 'profile_anant_1',
+    name: 'Subhashish Roy',
+    phone: '+91 98301 22334',
+    email: 'subhashish@gmail.com',
+    notes: 'Creta 2024 - Nappa Black with Red Stitching',
+    created_at: new Date(Date.now() - 14 * 86400000).toISOString(),
+  },
+  {
+    id: 'cust_2',
+    profile_id: 'profile_anant_1',
+    name: 'Dr. Tanmoy Banerjee',
+    phone: '+91 94340 55667',
+    email: 'tanmoy.banerjee@hospital.org',
+    notes: 'Honda City - Beige leatherette',
+    created_at: new Date(Date.now() - 28 * 86400000).toISOString(),
+  },
+  {
+    id: 'cust_3',
+    profile_id: 'profile_anant_1',
+    name: 'Rajesh Mukherjee',
+    phone: '+91 98320 99881',
+    email: 'rajesh.m@gmail.com',
+    notes: 'Scorpio N - 7D floor mats and neck pillows',
+    created_at: new Date(Date.now() - 5 * 86400000).toISOString(),
+  },
+];
+
+export const DEMO_ORDERS: Order[] = [
+  {
+    id: 'ord_101',
+    profile_id: 'profile_anant_1',
+    customer_id: 'cust_1',
+    customer_name: 'Subhashish Roy',
+    customer_phone: '+91 98301 22334',
+    items: [
+      { productId: 'prod_1', name: 'Premium Leatherette Seat Cover', price: 6499, quantity: 1 }
+    ],
+    status: 'completed',
+    total: 6499,
+    created_at: new Date(Date.now() - 14 * 86400000).toISOString(),
+  },
+  {
+    id: 'ord_102',
+    profile_id: 'profile_anant_1',
+    customer_id: 'cust_2',
+    customer_name: 'Dr. Tanmoy Banerjee',
+    customer_phone: '+91 94340 55667',
+    items: [
+      { productId: 'prod_2', name: 'Custom Car Interior Styling', price: 14999, quantity: 1 }
+    ],
+    status: 'completed',
+    total: 14999,
+    created_at: new Date(Date.now() - 28 * 86400000).toISOString(),
+  },
+  {
+    id: 'ord_103',
+    profile_id: 'profile_anant_1',
+    customer_id: 'cust_3',
+    customer_name: 'Rajesh Mukherjee',
+    customer_phone: '+91 98320 99881',
+    items: [
+      { productId: 'prod_3', name: '7D Waterproof All-Weather Floor Mat', price: 3899, quantity: 1 },
+      { productId: 'prod_4', name: 'Ergonomic Memory Foam Neck Pillows', price: 1199, quantity: 1 }
+    ],
+    status: 'confirmed',
+    total: 5098,
+    created_at: new Date(Date.now() - 5 * 86400000).toISOString(),
+  },
+  {
+    id: 'ord_104',
+    profile_id: 'profile_anant_1',
+    customer_name: 'Vikram Sengupta',
+    customer_phone: '+91 97321 00445',
+    items: [
+      { productId: 'prod_1', name: 'Premium Leatherette Seat Cover', price: 6499, quantity: 1 }
+    ],
+    status: 'pending',
+    total: 6499,
+    created_at: new Date(Date.now() - 1 * 86400000).toISOString(),
+  }
+];
+
+// Realistic seeded analytics events for demonstration
+export const DEMO_ANALYTICS_EVENTS: AnalyticsEvent[] = [
+  ...Array.from({ length: 48 }, (_, i) => ({
+    id: `ev_pv_${i}`,
+    profile_id: 'profile_anant_1',
+    event_type: 'page_view' as const,
+    metadata: { referrer: i % 2 === 0 ? 'instagram' : 'whatsapp', city: 'Berhampore' },
+    created_at: new Date(Date.now() - (i % 7) * 86400000 - Math.random() * 36000000).toISOString(),
+  })),
+  ...Array.from({ length: 18 }, (_, i) => ({
+    id: `ev_wa_${i}`,
+    profile_id: 'profile_anant_1',
+    event_type: 'whatsapp_click' as const,
+    metadata: { source: 'hero_button' },
+    created_at: new Date(Date.now() - (i % 6) * 86400000 - Math.random() * 20000000).toISOString(),
+  })),
+  ...Array.from({ length: 12 }, (_, i) => ({
+    id: `ev_pc_${i}`,
+    profile_id: 'profile_anant_1',
+    event_type: 'product_click' as const,
+    metadata: { product_id: i % 2 === 0 ? 'prod_1' : 'prod_2' },
+    created_at: new Date(Date.now() - (i % 5) * 86400000 - Math.random() * 15000000).toISOString(),
+  })),
+  ...Array.from({ length: 9 }, (_, i) => ({
+    id: `ev_cl_${i}`,
+    profile_id: 'profile_anant_1',
+    event_type: 'call_click' as const,
+    metadata: {},
+    created_at: new Date(Date.now() - (i % 4) * 86400000 - Math.random() * 10000000).toISOString(),
+  })),
+  ...Array.from({ length: 7 }, (_, i) => ({
+    id: `ev_dir_${i}`,
+    profile_id: 'profile_anant_1',
+    event_type: 'directions_click' as const,
+    metadata: {},
+    created_at: new Date(Date.now() - (i % 5) * 86400000).toISOString(),
+  })),
+  ...Array.from({ length: 6 }, (_, i) => ({
+    id: `ev_qr_${i}`,
+    profile_id: 'profile_anant_1',
+    event_type: 'qr_visit' as const,
+    metadata: { location: 'shop_counter_card' },
+    created_at: new Date(Date.now() - (i % 3) * 86400000).toISOString(),
+  })),
+];

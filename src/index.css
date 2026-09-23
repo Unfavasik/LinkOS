@@ -1,0 +1,43 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=Caveat:wght@600;700&display=swap');
+@import "tailwindcss";
+
+/* Class-based dark mode for template pages — toggled via the .lk-dark wrapper */
+@custom-variant dark (&:where(.lk-dark, .lk-dark *));
+
+/* Visitor-facing dark override for the CSS-variable theming system */
+.lk-dark {
+  --lk-bg: #0B1120;
+  --lk-surface: #111B2E;
+  --lk-text: #F1F5F9;
+  --lk-sub: #94A3B8;
+  --lk-border: rgba(255, 255, 255, 0.10);
+}
+
+@theme {
+  --font-display: 'Space Grotesk', 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace;
+}
+
+.font-hand {
+  font-family: 'Caveat', cursive;
+}
+
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+.animate-marquee {
+  animation: marquee 36s linear infinite;
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translate(-50%, 12px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee {
+    animation: none;
+  }
+}

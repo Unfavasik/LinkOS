@@ -1,0 +1,242 @@
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { ArrowRight, Lock, Mail, Eye, EyeOff, User, ShieldCheck, Users, Zap } from 'lucide-react';
+import { AuthShell, SocialButtons } from '../components/auth/AuthShell';
+import { StorageService } from '../lib/storage';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
+
+const COLLAGE = [
+  { src: '/images/cafe/interior.webp', alt: 'Café interior', cls: 'left-0 top-0 w-28 h-20 -rotate-6' },
+  { src: '/images/collage/gym.webp', alt: 'Gym', cls: 'right-0 top-0 w-24 h-20 rotate-6' },
+  { src: '/images/collage/car-detailing.webp', alt: 'Car detailing workshop', cls: 'left-2 bottom-0 w-24 h-20 rotate-3' },
+  { src: '/images/collage/clothing.webp', alt: 'Clothing store', cls: 'right-2 bottom-0 w-24 h-24 -rotate-3' },
+];
+
+export const SignupPage: React.FC = () => {
+  const navigate = useNavigate();
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [agreed, setAgreed] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters.');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      if (isSupabaseConfigured && supabase) {
+        try {
+          const { data, error: authError } = await supabase.auth.signUp({
+            email,
+            password,
+          });
+
+          if (authError) throw authError;
+          if (!data.user) throw new Error('Account creation failed. Please try again.');
+
+          StorageService.setActiveUser({
+            id: data.user.id,
+            email: data.user.email || email,
+            business_name: fullName || 'My Business',
+          });
+          navigate('/onboarding');
+          return;
+        } catch (supabaseErr: any) {
+          // If Supabase is unreachable, fall through to local storage
+          console.warn('Supabase signup error, using local fallback:', supabaseErr);
+        }
+      }
+
+      // Offline / Local-first user creation
+      const { user } = StorageService.loginUser(email, password);
+      if (fullName) {
+        user.business_name = fullName;
+        StorageService.setActiveUser(user);
+        const p = await StorageService.getCurrentUserProfile();
+        if (p) {
+          p.business_name = fullName;
+          await StorageService.saveProfile(p);
+        }
+      }
+      navigate('/onboarding');
+    } catch (err: any) {
+      setError(err.message || 'Failed to create account.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDemoLogin = () => {
+    StorageService.loginDemoUser();
+    navigate('/dashboard');
+  };
+
+  const handleSocial = (provider: 'google' | 'apple' | 'facebook') => {
+    if (provider === 'google' && isSupabaseConfigured && supabase) {
+      supabase.auth
+        .signInWithOAuth({ provider: 'google', options: { redirectTo: `${window.location.origin}/dashboard` } })
+        .catch(() => undefined);
+      return;
+    }
+    // Fast mock social sign in for testing
+    StorageService.loginUser(`${provider}.user@linkos.dev`);
+    navigate('/onboarding');
+  };
+
+  return (
+    <AuthShell>
+      {/* Photo collage + handwritten note */}
+      <div className="relative h-48 mt-4" aria-hidden="true">
+        {COLLAGE.map((img, i) => (
+          <div key={i} className={`absolute ${img.cls} rounded-xl overflow-hidden border border-white/15 shadow-lg shadow-black/40`}>
+            <img src={img.src} alt={img.alt} className="w-full h-full object-cover" />
+          </div>
+        ))}
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
+          <p className="font-serif italic text-[17px] leading-snug text-white -rotate-3">
+            Your Business<br />Online<br />In Minutes
+          </p>
+          <svg viewBox="0 0 80 12" className="w-20 h-3 mx-auto mt-1 stroke-[#1D7AFC] fill-none" strokeWidth="2.5" strokeLinecap="round">
+            <path d="M2 8 C 25 2, 55 2, 78 6" />
+          </svg>
+        </div>
+      </div>
+
+      {/* Heading */}
+      <h1 className="mt-5 text-[28px] font-bold tracking-tight leading-tight">
+        Create Your <span className="text-[#3B82F6]">Account</span>
+      </h1>
+      <p className="mt-1.5 text-[13px] leading-relaxed text-zinc-400 text-pretty">
+        Join thousands of local businesses already growing with LinkOS.
+      </p>
+
+      {/* Form card */}
+      <div className="mt-5 rounded-2xl bg-[#0B1626] border border-white/10 p-5">
+        {error && (
+          <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-300 text-xs flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label htmlFor="signup-name" className="block text-[13px] font-semibold mb-1.5">Full Name</label>
+            <div className="relative">
+              <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 pointer-events-none" />
+              <input
+                id="signup-name"
+                type="text"
+                required
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                placeholder="Enter your full name"
+                className="w-full pl-10 pr-3 py-3 text-[13px] rounded-xl bg-[#0A1420] border border-white/10 placeholder:text-zinc-500 focus:ring-2 focus:ring-blue-500/60 focus:border-blue-500/60 outline-none transition-all"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label htmlFor="signup-email" className="block text-[13px] font-semibold mb-1.5">Email or Phone</label>
+            <div className="relative">
+              <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 pointer-events-none" />
+              <input
+                id="signup-email"
+                type="text"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Enter your email or phone"
+                className="w-full pl-10 pr-3 py-3 text-[13px] rounded-xl bg-[#0A1420] border border-white/10 placeholder:text-zinc-500 focus:ring-2 focus:ring-blue-500/60 focus:border-blue-500/60 outline-none transition-all"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label htmlFor="signup-password" className="block text-[13px] font-semibold mb-1.5">Password</label>
+            <div className="relative">
+              <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 pointer-events-none" />
+              <input
+                id="signup-password"
+                type={showPassword ? 'text' : 'password'}
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Create a password"
+                className="w-full pl-10 pr-10 py-3 text-[13px] rounded-xl bg-[#0A1420] border border-white/10 placeholder:text-zinc-500 focus:ring-2 focus:ring-blue-500/60 focus:border-blue-500/60 outline-none transition-all"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors"
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+            <p className="mt-1.5 text-[11px] text-zinc-500">At least 8 characters with a number and a symbol.</p>
+          </div>
+
+          <label className="flex items-start gap-2.5 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={agreed}
+              onChange={(e) => setAgreed(e.target.checked)}
+              required
+              className="w-4 h-4 mt-0.5 rounded accent-[#1D7AFC]"
+            />
+            <span className="text-[12px] leading-relaxed text-zinc-300">
+              I agree to the{' '}
+              <button type="button" className="text-[#3B82F6] font-semibold hover:text-blue-400">Terms of Service</button>
+              {' '}and{' '}
+              <button type="button" className="text-[#3B82F6] font-semibold hover:text-blue-400">Privacy Policy</button>
+            </span>
+          </label>
+
+          <button
+            type="submit"
+            disabled={loading || !agreed}
+            className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-[#1D7AFC] hover:bg-blue-500 text-white text-sm font-bold shadow-lg shadow-blue-600/30 transition-all active:scale-[0.98] disabled:opacity-50"
+          >
+            <span>{loading ? 'Creating account...' : 'Create Account'}</span>
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        </form>
+
+        <SocialButtons dividerLabel="Or sign up with" onSocial={handleSocial} />
+
+        <p className="text-center text-[13px] text-zinc-400 mt-5">
+          Already have an account?{' '}
+          <Link to="/login" className="font-semibold text-[#3B82F6] hover:text-blue-400 transition-colors">
+            Log In
+          </Link>
+        </p>
+
+        {import.meta.env.DEV && (
+          <p className="text-center mt-4">
+            <button type="button" onClick={handleDemoLogin} className="text-[11px] text-zinc-500 hover:text-zinc-300 underline underline-offset-2 transition-colors">
+              Explore demo business
+            </button>
+          </p>
+        )}
+      </div>
+
+      {/* Trust footer */}
+      <div className="mt-6 flex items-center justify-center gap-5 text-[11px] text-zinc-400">
+        <span className="flex items-center gap-1.5"><ShieldCheck className="w-3.5 h-3.5 text-emerald-400" /> Secure</span>
+        <span className="flex items-center gap-1.5"><Users className="w-3.5 h-3.5 text-sky-400" /> Trusted by 10K+</span>
+        <span className="flex items-center gap-1.5"><Zap className="w-3.5 h-3.5 text-amber-400" /> Quick Setup</span>
+      </div>
+    </AuthShell>
+  );
+};

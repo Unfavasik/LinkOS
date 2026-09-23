@@ -1,0 +1,6 @@
+{
+  "name": "LinkOS",
+  "description": "One link. Your whole business. Create a mobile-first business page to showcase products, WhatsApp, contact details, location, and social links.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
