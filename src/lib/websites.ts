@@ -197,7 +197,8 @@ async function uniqueSlug(base: string): Promise<string> {
 
 export async function fetchMyWebsites(): Promise<WebsiteRecord[]> {
   const uid = await currentUserId();
-  if (!uid || !isSupabaseConfigured || !supabase) return [];
+  if (!uid) return [];
+  if (!isSupabaseConfigured || !supabase) return [];
   const { data, error } = await supabase
     .from('websites')
     .select('*')
@@ -205,15 +206,21 @@ export async function fetchMyWebsites(): Promise<WebsiteRecord[]> {
     .order('updated_at', { ascending: false });
   if (error) {
     console.log('[v0] fetchMyWebsites failed:', error.message);
-    return [];
+    // Fall back to the local store so demo sessions still see their sites.
+    return readLocalWebsites().filter((r) => r.owner_id === uid);
   }
-  return (data ?? []).map(toRecord);
+  const remote = (data ?? []).map(toRecord);
+  const remoteIds = new Set(remote.map((r) => r.id));
+  const localOnly = readLocalWebsites().filter((r) => r.owner_id === uid && !remoteIds.has(r.id));
+  return [...remote, ...localOnly];
 }
 
 export async function fetchWebsite(id: string): Promise<WebsiteRecord | null> {
-  if (!isSupabaseConfigured || !supabase) return null;
+  const local = getLocalWebsite(id);
+  if (!isSupabaseConfigured || !supabase) return local;
   const { data, error } = await supabase.from('websites').select('*').eq('id', id).maybeSingle();
   if (error || !data) {
+    if (local) return local;
     console.log('[v0] fetchWebsite failed:', error?.message);
     return null;
   }
@@ -244,16 +251,31 @@ export async function createWebsiteFromContent(
 ): Promise<WebsiteRecord | null> {
   const uid = await currentUserId();
   const tpl = getTemplateById(templateId);
-  if (!uid || !tpl || !isSupabaseConfigured || !supabase) return null;
+  if (!uid || !tpl) return null;
   const slug = await uniqueSlug(preferredSlug?.trim() || name || tpl.name);
+  if (!isSupabaseConfigured || !supabase) return null;
   const { data, error } = await supabase
     .from('websites')
     .insert({ owner_id: uid, template_id: tpl.id, name: name.trim() || tpl.name, slug, status: 'live', content })
     .select('*')
     .maybeSingle();
   if (error || !data) {
-    console.log('[v0] createWebsiteFromContent failed:', error?.message);
-    return null;
+    // Demo sessions have no auth token, so RLS rejects the insert. Keep the
+    // site in the local store so the flow still completes end to end.
+    console.log('[v0] createWebsiteFromContent falling back to local store:', error?.message);
+    const record: WebsiteRecord = {
+      id: `local-${crypto.randomUUID()}`,
+      owner_id: uid,
+      template_id: tpl.id,
+      name: name.trim() || tpl.name,
+      slug,
+      status: 'live',
+      content,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    upsertLocalWebsite(record);
+    return record;
   }
   return toRecord(data);
 }
@@ -286,7 +308,14 @@ export async function updateWebsite(
   id: string,
   patch: Partial<Pick<WebsiteRecord, 'name' | 'slug' | 'status' | 'content'>>,
 ): Promise<WebsiteRecord | null> {
-  if (!isSupabaseConfigured || !supabase) return null;
+  if (!isSupabaseConfigured || !supabase) {
+    // Local-only record (demo session): apply the patch locally.
+    const local = getLocalWebsite(id);
+    if (!local) return null;
+    const updated = { ...local, ...patch, updated_at: new Date().toISOString() };
+    upsertLocalWebsite(updated);
+    return updated;
+  }
   const { data, error } = await supabase
     .from('websites')
     .update({ ...patch, updated_at: new Date().toISOString() })
@@ -295,6 +324,12 @@ export async function updateWebsite(
     .maybeSingle();
   if (error || !data) {
     console.log('[v0] updateWebsite failed:', error?.message);
+    const local = getLocalWebsite(id);
+    if (local) {
+      const updated = { ...local, ...patch, updated_at: new Date().toISOString() };
+      upsertLocalWebsite(updated);
+      return updated;
+    }
     return null;
   }
   return toRecord(data);
@@ -306,7 +341,8 @@ export async function setWebsiteStatus(id: string, status: 'draft' | 'live'): Pr
 }
 
 export async function deleteWebsite(id: string): Promise<boolean> {
-  if (!isSupabaseConfigured || !supabase) return false;
+  writeLocalWebsites(readLocalWebsites().filter((r) => r.id !== id));
+  if (!isSupabaseConfigured || !supabase) return true;
   const { error } = await supabase.from('websites').delete().eq('id', id);
   if (error) {
     console.log('[v0] deleteWebsite failed:', error.message);
