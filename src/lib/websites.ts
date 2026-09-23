@@ -1,5 +1,6 @@
 import { supabase, isSupabaseConfigured } from './supabase';
 import { getTemplateById, type PageTemplate } from '../data/templates';
+import { StorageService } from './storage';
 import type { Profile } from '../types';
 
 export interface WebsiteRecord {
@@ -48,30 +49,36 @@ async function currentUserId(): Promise<string | null> {
   return data?.user?.id ?? null;
 }
 
-/** Build a Profile-shaped content snapshot from a template.
- *  Only the template's DESIGN (theme, layout, fonts) carries over — all
- *  content fields start empty so the user fills in their own data.
- *  Templates are never modified — each website gets its own copy. */
-export function templateContentSnapshot(tpl: PageTemplate, name: string): Profile {
+/** Build a Profile-shaped content snapshot for a new website.
+ *  Design (theme, layout, fonts) comes from the template; all business
+ *  content is prefilled from the user's existing My Page profile so the
+ *  website starts with the same data the My Page editor shows. Templates
+ *  are never modified — each website gets its own copy. */
+export function templateContentSnapshot(
+  tpl: PageTemplate,
+  name: string,
+  profile?: Profile | null,
+): Profile {
+  const p = profile ?? null;
   return {
     id: '',
-    user_id: '',
-    business_name: name,
+    user_id: p?.id ?? '',
+    business_name: name || p?.business_name || '',
     username: '',
-    category: tpl.category,
-    description: '',
-    logo_url: '',
-    cover_url: '',
-    bio: '',
-    phone: '',
-    whatsapp: '',
-    whatsapp_message: '',
-    email: '',
-    website: '',
-    address: '',
-    city: '',
-    state: '',
-    country: '',
+    category: p?.category || tpl.category,
+    description: p?.description ?? '',
+    logo_url: p?.logo_url ?? '',
+    cover_url: p?.cover_url ?? '',
+    bio: p?.bio ?? '',
+    phone: p?.phone ?? '',
+    whatsapp: p?.whatsapp ?? '',
+    whatsapp_message: p?.whatsapp_message ?? '',
+    email: p?.email ?? '',
+    website: p?.website ?? '',
+    address: p?.address ?? '',
+    city: p?.city ?? '',
+    state: p?.state ?? '',
+    country: p?.country ?? '',
     theme: tpl.theme,
     accent_color: tpl.accent_color,
     button_style: tpl.button_style,
@@ -176,7 +183,10 @@ export async function createWebsiteFromTemplate(
   const tpl = getTemplateById(templateId);
   if (!uid || !tpl || !isSupabaseConfigured || !supabase) return null;
   const slug = await uniqueSlug(name || tpl.name);
-  const content = templateContentSnapshot(tpl, name || tpl.name);
+  // Prefill content from the user's My Page profile so the new website
+  // starts with the same business data the My Page editor shows.
+  const profile = await StorageService.getCurrentUserProfile();
+  const content = templateContentSnapshot(tpl, name || tpl.name, profile);
   const { data, error } = await supabase
     .from('websites')
     .insert({ owner_id: uid, template_id: tpl.id, name: name || tpl.name, slug, status: 'draft', content })

@@ -195,10 +195,14 @@ export const EditorPage: React.FC<{ templateMode?: boolean; websiteMode?: boolea
           navigate('/dashboard/websites');
           return;
         }
-        setFormData({ ...site.content, id: site.id } as Profile);
+        // Products are shared with My Page — keyed by the owner's profile id,
+        // so the website editor shows (and saves to) the same catalog.
+        const ownerProfile = outletCtx?.profile ?? (await StorageService.getCurrentUserProfile());
+        const catalogId = ownerProfile?.id ?? site.id;
+        setFormData({ ...site.content, id: catalogId } as Profile);
         setWebsiteSlug(site.slug);
         setWebsiteStatus(site.status);
-        StorageService.getProducts(site.id).then(setProducts).catch(() => {});
+        StorageService.getProducts(catalogId).then(setProducts).catch(() => {});
       })();
       return () => {
         cancelled = true;
@@ -1681,7 +1685,7 @@ export const EditorPage: React.FC<{ templateMode?: boolean; websiteMode?: boolea
         </div>
       )}
 
-      {/* ══════════ SETTINGS TAB ══════════ */}
+      {/* ══════════ SETTINGS TAB ═��════════ */}
       {activeTab === 'settings' && (
         <div className="mt-4 space-y-4">
           <SectionCard title="Page Address">
