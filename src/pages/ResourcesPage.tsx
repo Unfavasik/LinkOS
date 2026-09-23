@@ -19,8 +19,10 @@ import {
   POPULAR_RESOURCES,
   type ResourceChip,
 } from '../data/resources';
+import { loadPublishedGuides } from '../lib/guides';
 import { MobileTabBar } from '../components/common/MobileTabBar';
 import { SeoHead } from '../components/common/SeoHead';
+import useSWR from 'swr';
 
 const CHIP_LIST: ResourceChip[] = ['All', 'Guides', 'Templates', 'Tools', 'Business Tips'];
 
@@ -38,6 +40,11 @@ export const ResourcesPage: React.FC = () => {
   const [chip, setChip] = useState<ResourceChip>('All');
   const [query, setQuery] = useState('');
 
+  // Live article counts from the database replace the hardcoded meta strings.
+  const { data: guides } = useSWR('published-guides', loadPublishedGuides, { fallbackData: [] });
+  const guideCount = guides?.length ?? 0;
+  const tipCount = guides?.filter((g) => g.tag === 'Business Tip').length ?? 0;
+
   const categories = useMemo(() => {
     const q = query.trim().toLowerCase();
     return RESOURCE_CATEGORIES.filter((c) => {
@@ -45,8 +52,14 @@ export const ResourcesPage: React.FC = () => {
       const matchesQuery =
         !q || c.title.toLowerCase().includes(q) || c.description.toLowerCase().includes(q);
       return matchesChip && matchesQuery;
+    }).map((c) => {
+      if (c.id === 'guides' && guideCount > 0)
+        return { ...c, meta: `${guideCount} article${guideCount === 1 ? '' : 's'}` };
+      if (c.id === 'tips' && tipCount > 0)
+        return { ...c, meta: `${tipCount} article${tipCount === 1 ? '' : 's'}` };
+      return c;
     });
-  }, [chip, query]);
+  }, [chip, query, guideCount, tipCount]);
 
   const popular = useMemo(() => {
     const q = query.trim().toLowerCase();

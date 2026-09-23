@@ -18,7 +18,7 @@ async function fetchGuides(): Promise<Guide[]> {
   return loadPublishedGuides();
 }
 
-export const GuidesListPage: React.FC = () => {
+export const GuidesListPage: React.FC<{ tagFilter?: string }> = ({ tagFilter }) => {
   const { data: guides, error } = useSWR('published-guides', fetchGuides);
   const [query, setQuery] = useState('');
 
@@ -27,12 +27,13 @@ export const GuidesListPage: React.FC = () => {
     if (!guides) return [];
     return guides.filter(
       (g) =>
-        !q ||
-        g.title.toLowerCase().includes(q) ||
-        g.intro.toLowerCase().includes(q) ||
-        g.tags.some((t) => t.toLowerCase().includes(q))
+        (!tagFilter || g.tag === tagFilter) &&
+        (!q ||
+          g.title.toLowerCase().includes(q) ||
+          g.intro.toLowerCase().includes(q) ||
+          g.tags.some((t) => t.toLowerCase().includes(q)))
     );
-  }, [guides, query]);
+  }, [guides, query, tagFilter]);
 
   return (
     <div className="min-h-screen bg-[#050D1F] pb-20">
@@ -59,11 +60,20 @@ export const GuidesListPage: React.FC = () => {
             Learn • Build • Grow
           </span>
           <h1 className="mt-3 text-[30px] leading-[1.15] font-bold text-white text-balance">
-            Guides &amp; <span className="text-blue-500">Tutorials</span>
+            {tagFilter ? (
+              <>
+                Business <span className="text-blue-500">Tips</span>
+              </>
+            ) : (
+              <>
+                Guides &amp; <span className="text-blue-500">Tutorials</span>
+              </>
+            )}
           </h1>
           <p className="mt-3 text-[14px] leading-relaxed text-slate-400">
-            Step-by-step guides to create, customize and grow your business page. Pick one and
-            follow along.
+            {tagFilter
+              ? 'Practical tips to get more customers and grow your business online.'
+              : 'Step-by-step guides to create, customize and grow your business page. Pick one and follow along.'}
           </p>
         </div>
 
@@ -85,7 +95,8 @@ export const GuidesListPage: React.FC = () => {
       <section className="mt-6 bg-white rounded-t-[28px] min-h-screen">
         <div className="max-w-2xl md:max-w-5xl mx-auto px-4 pt-6 pb-8">
           <h2 className="text-[19px] font-bold text-slate-900">
-            All Guides <span className="text-slate-400 font-semibold text-[14px]">({filtered.length})</span>
+            {tagFilter ? 'All Business Tips' : 'All Guides'}{' '}
+            <span className="text-slate-400 font-semibold text-[14px]">({filtered.length})</span>
           </h2>
 
           {error ? (

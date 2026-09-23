@@ -141,6 +141,7 @@ export default function App() {
         <Route path="/templates" element={<TemplatesGalleryPage />} />
         <Route path="/resources" element={<ResourcesPage />} />
         <Route path="/resources/guides" element={<GuidesListPage />} />
+        <Route path="/resources/business-tips" element={<GuidesListPage tagFilter="Business Tip" />} />
         <Route path="/resources/guides/:slug" element={<GuideArticlePage />} />
         <Route path="/resources/:slug" element={<ResourceArticlePage />} />
         <Route path="/help" element={<HelpCenterPage />} />
