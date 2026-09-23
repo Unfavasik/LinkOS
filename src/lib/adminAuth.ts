@@ -250,6 +250,19 @@ export function getCachedAdmin(): AdminRecord | null {
   return cachedAdmin ?? null;
 }
 
+/**
+ * Where an authenticated user should land after sign-in/sign-up. Admins are
+ * never sent to the user dashboard — they always go straight to the admin
+ * panel, everywhere in the app.
+ */
+export async function resolvePostAuthRoute(
+  email: string,
+  userId?: string
+): Promise<'/admin' | '/dashboard'> {
+  const admin = await verifyAdmin(email, userId);
+  return admin ? '/admin' : '/dashboard';
+}
+
 export function clearAdminCache() {
   cachedAdmin = undefined;
 }

@@ -4,6 +4,7 @@ import { ArrowRight, Lock, Mail, Eye, EyeOff, User, ShieldCheck, Users, Zap } fr
 import { AuthShell, SocialButtons } from '../components/auth/AuthShell';
 import { StorageService } from '../lib/storage';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { resolvePostAuthRoute } from '../lib/adminAuth';
 
 const COLLAGE = [
   { src: '/images/cafe/interior.webp', alt: 'Café interior', cls: 'left-0 top-0 w-28 h-20 -rotate-6' },
@@ -48,7 +49,8 @@ export const SignupPage: React.FC = () => {
             email: signIn.user.email || email,
             business_name: fullName || 'My Business',
           });
-          navigate('/dashboard');
+          // Admins never land on the user dashboard.
+          navigate(await resolvePostAuthRoute(signIn.user.email || email, signIn.user.id));
           return;
         }
 
@@ -88,7 +90,7 @@ export const SignupPage: React.FC = () => {
               email: retry.user.email || email,
               business_name: fullName || 'My Business',
             });
-            navigate('/dashboard');
+            navigate(await resolvePostAuthRoute(retry.user.email || email, retry.user.id));
             return;
           }
           if (retryError && !/email not confirmed/i.test(retryError.message)) {
