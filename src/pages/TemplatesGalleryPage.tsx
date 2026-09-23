@@ -1,7 +1,7 @@
 import { PublicNavbar } from '../components/common/PublicNavbar';
 import { MobileTabBar } from '../components/common/MobileTabBar';
 import React, { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   Search,
   Heart,
@@ -70,6 +70,7 @@ export const TemplatesGalleryPage: React.FC = () => {
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState<'All' | TemplateCategory>('All');
   const [showAllCategories, setShowAllCategories] = useState(false);
+  const navigate = useNavigate();
   const [wizardTemplate, setWizardTemplate] = useState<PageTemplate | null>(null);
   // Prefill the apply wizard with the signed-in user's My Page data so
   // creating a website starts from everything they already filled in.
@@ -329,6 +330,11 @@ export const TemplatesGalleryPage: React.FC = () => {
         <TemplateApplyWizard
           template={wizardTemplate}
           existingProfile={userProfile}
+          websiteMode
+          onWebsitePublished={(site) => {
+            setWizardTemplate(null);
+            navigate(`/dashboard/websites/${site.id}`);
+          }}
           onClose={() => setWizardTemplate(null)}
           onPublished={() => setWizardTemplate(null)}
         />

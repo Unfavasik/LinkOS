@@ -35,6 +35,7 @@ import {
 } from 'lucide-react';
 import { Profile, Product, Review } from '../../types';
 import { StorageService } from '../../lib/storage';
+import { createWebsiteFromContent, type WebsiteRecord } from '../../lib/websites';
 import { useUploadProgress, UploadProgressBar } from '../UploadProgressBar';
 import { PageTemplate, TEMPLATE_CATEGORIES } from '../../data/templates';
 import { TemplatePreview } from './TemplatePreview';
@@ -46,6 +47,10 @@ interface TemplateApplyWizardProps {
   existingProfile: Profile | null;
   onClose: () => void;
   onPublished: (profile: Profile) => void;
+  /** Create Website flow: publish creates a user-owned website instead of
+   *  overwriting the user's My Page profile. */
+  websiteMode?: boolean;
+  onWebsitePublished?: (site: WebsiteRecord) => void;
 }
 
 interface ProductDraft {
@@ -149,11 +154,14 @@ export const TemplateApplyWizard: React.FC<TemplateApplyWizardProps> = ({
   existingProfile,
   onClose,
   onPublished,
+  websiteMode = false,
+  onWebsitePublished,
 }) => {
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
   const [publishing, setPublishing] = useState(false);
   const [publishedProfile, setPublishedProfile] = useState<Profile | null>(null);
+  const [createdSite, setCreatedSite] = useState<WebsiteRecord | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState('');
   const [copied, setCopied] = useState(false);
 
@@ -198,6 +206,32 @@ export const TemplateApplyWizard: React.FC<TemplateApplyWizardProps> = ({
         ? CAFE_DEMO_PRODUCTS
         : [{ name: '', price: '', offerPrice: '', offerOn: false, category: '', description: '', image: '', available: true }]
   );
+  // Prefill the Products step with the user's existing My Page catalog so
+  // Create Website starts from everything they already added.
+  const [existingProductNames, setExistingProductNames] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    if (!existingProfile?.id) return;
+    let cancelled = false;
+    StorageService.getProducts(existingProfile.id).then((items) => {
+      if (cancelled || items.length === 0) return;
+      setExistingProductNames(new Set(items.map((p) => p.name.trim().toLowerCase())));
+      setProductDrafts(
+        items.map((p) => ({
+          name: p.name,
+          price: String(p.price ?? ''),
+          offerPrice: p.discount_pct && p.price ? String(Math.round(p.price * (1 - p.discount_pct / 100))) : '',
+          offerOn: Boolean(p.discount_pct),
+          category: p.category || '',
+          description: p.description || '',
+          image: p.image_url || '',
+          available: p.available,
+        })),
+      );
+    }).catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [existingProfile?.id]);
   const [productCategories, setProductCategories] = useState<string[]>(
     isCafe ? ['Drinks', 'Food', 'Desserts'] : []
   );
@@ -255,8 +289,11 @@ export const TemplateApplyWizard: React.FC<TemplateApplyWizardProps> = ({
   }, [username, existingProfile?.id]);
 
   const liveUrl = useMemo(
-    () => `${window.location.origin}/${username || 'your-business'}`,
-    [username]
+    () =>
+      websiteMode && createdSite
+        ? `${window.location.origin}/site/${createdSite.slug}`
+        : `${window.location.origin}/${username || 'your-business'}`,
+    [username, createdSite, websiteMode]
   );
 
   useEffect(() => {
@@ -416,6 +453,53 @@ export const TemplateApplyWizard: React.FC<TemplateApplyWizardProps> = ({
         services: template.services?.length ? template.services : existingProfile?.services,
         updated_at: now,
       };
+
+      // Create Website flow: store the wizard content as a NEW user-owned
+      // website. My Page stays untouched; the template library is never
+      // modified. Products stay in the shared catalog — only genuinely new
+      // drafts are added.
+      if (websiteMode) {
+        const site = await createWebsiteFromContent(
+          template.id,
+          profile.business_name,
+          profile,
+          username.trim().toLowerCase(),
+        );
+        if (!site) {
+          console.error('[v0] Website creation failed');
+          return;
+        }
+        const newDrafts = productDrafts.filter(
+          (p) => p.name.trim().length >= 2 && !existingProductNames.has(p.name.trim().toLowerCase()),
+        );
+        const catalogId = existingProfile?.id || site.id;
+        for (let i = 0; i < newDrafts.length; i++) {
+          const draft = newDrafts[i];
+          const price = Number(draft.price) || 0;
+          const offer = Number(draft.offerPrice) || 0;
+          const product: Product = {
+            id: `prod_${Date.now()}_${i}`,
+            profile_id: catalogId,
+            name: draft.name.trim(),
+            description: draft.description.trim(),
+            price,
+            currency: 'INR',
+            image_url: draft.image.trim(),
+            category: draft.category || category,
+            available: draft.available,
+            featured: false,
+            sort_order: 100 + i,
+            discount_pct: draft.offerOn && offer > 0 && offer < price ? Math.round((1 - offer / price) * 100) : undefined,
+            created_at: now,
+            updated_at: now,
+          };
+          await StorageService.saveProduct(product);
+        }
+        setCreatedSite(site);
+        setPublishedProfile(profile);
+        onWebsitePublished?.(site);
+        return;
+      }
 
       const saved = await StorageService.saveProfile(profile);
 

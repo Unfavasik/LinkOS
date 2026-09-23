@@ -175,6 +175,32 @@ export async function fetchLiveWebsiteBySlug(slug: string): Promise<WebsiteRecor
   return toRecord(data);
 }
 
+/** Create a user-owned website from fully-customized wizard content.
+ *  Used by the apply wizard's Create Website flow: the wizard collects all
+ *  content (prefilled from the user's My Page) and we store it as this
+ *  website's own snapshot. The template library is never modified. */
+export async function createWebsiteFromContent(
+  templateId: string,
+  name: string,
+  content: Profile,
+  preferredSlug?: string,
+): Promise<WebsiteRecord | null> {
+  const uid = await currentUserId();
+  const tpl = getTemplateById(templateId);
+  if (!uid || !tpl || !isSupabaseConfigured || !supabase) return null;
+  const slug = await uniqueSlug(preferredSlug?.trim() || name || tpl.name);
+  const { data, error } = await supabase
+    .from('websites')
+    .insert({ owner_id: uid, template_id: tpl.id, name: name.trim() || tpl.name, slug, status: 'live', content })
+    .select('*')
+    .maybeSingle();
+  if (error || !data) {
+    console.log('[v0] createWebsiteFromContent failed:', error?.message);
+    return null;
+  }
+  return toRecord(data);
+}
+
 export async function createWebsiteFromTemplate(
   templateId: string,
   name: string,
