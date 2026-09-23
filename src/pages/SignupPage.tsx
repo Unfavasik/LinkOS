@@ -35,26 +35,77 @@ export const SignupPage: React.FC = () => {
 
     try {
       if (isSupabaseConfigured && supabase) {
-        try {
-          const { data, error: authError } = await supabase.auth.signUp({
+        // One credential set per user: try signing in first. Only create a new
+        // account when the email has never been registered.
+        const { data: signIn, error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+        if (signIn?.user) {
+          StorageService.setActiveUser({
+            id: signIn.user.id,
+            email: signIn.user.email || email,
+            business_name: fullName || 'My Business',
+          });
+          navigate('/dashboard');
+          return;
+        }
+
+        // Wrong password for an existing account — do not create a duplicate.
+        if (
+          signInError &&
+          !/invalid login credentials|email not confirmed/i.test(signInError.message)
+        ) {
+          throw signInError;
+        }
+
+        const { data, error: authError } = await supabase.auth.signUp({
+          email,
+          password,
+        });
+
+        if (authError) {
+          if (/already registered|already exists|already been/i.test(authError.message)) {
+            throw new Error(
+              'This email already has an account. The password you entered does not match — please log in instead.'
+            );
+          }
+          throw authError;
+        }
+        if (!data.user) throw new Error('Account creation failed. Please try again.');
+
+        if (!data.session) {
+          // No session: either the email already exists (Supabase returns an
+          // obfuscated success) or the new account awaits email confirmation.
+          const { data: retry, error: retryError } = await supabase.auth.signInWithPassword({
             email,
             password,
           });
-
-          if (authError) throw authError;
-          if (!data.user) throw new Error('Account creation failed. Please try again.');
-
-          StorageService.setActiveUser({
-            id: data.user.id,
-            email: data.user.email || email,
-            business_name: fullName || 'My Business',
-          });
-          navigate('/onboarding');
-          return;
-        } catch (supabaseErr: any) {
-          // If Supabase is unreachable, fall through to local storage
-          console.warn('Supabase signup error, using local fallback:', supabaseErr);
+          if (retry?.user) {
+            StorageService.setActiveUser({
+              id: retry.user.id,
+              email: retry.user.email || email,
+              business_name: fullName || 'My Business',
+            });
+            navigate('/dashboard');
+            return;
+          }
+          if (retryError && !/email not confirmed/i.test(retryError.message)) {
+            throw new Error(
+              'This email already has an account with a different password. Please log in instead.'
+            );
+          }
+          // New account awaiting confirmation — continue locally for now.
         }
+
+        StorageService.setActiveUser({
+          id: data.user.id,
+          email: data.user.email || email,
+          business_name: fullName || 'My Business',
+        });
+        navigate('/onboarding');
+        return;
       }
 
       // Offline / Local-first user creation
