@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
 import { LandingPage } from './pages/LandingPage';
 import AboutPage from './pages/AboutPage';
 import PricingPage from './pages/PricingPage';
@@ -10,7 +10,6 @@ import { ResourceArticlePage } from './pages/ResourceArticlePage';
 import { GuidesListPage } from './pages/GuidesListPage';
 import { GuideArticlePage } from './pages/GuideArticlePage';
 import { HelpCenterPage } from './pages/HelpCenterPage';
-import { HelpArticlePage } from './pages/HelpArticlePage';
 import { ContactSupportPage } from './pages/ContactSupportPage';
 import { MyTicketsPage } from './pages/MyTicketsPage';
 import { FeedbackPage } from './pages/FeedbackPage';
@@ -24,7 +23,6 @@ import {
   AdminReviewsPage,
   AdminQrCodesPage,
   AdminAnnouncementsPage,
-  AdminHelpArticlesPage,
 } from './pages/admin/AdminEngagePages';
 import { AdminAnalyticsPage, AdminSettingsPage } from './pages/admin/AdminSystemPages';
 import { AdminManageAdminsPage } from './pages/admin/AdminManageAdminsPage';
@@ -116,6 +114,19 @@ const AuthSynchronizer: React.FC = () => {
   return null;
 };
 
+/* Legacy /help/:slug URLs now live under Guides; old slugs map to their
+   replacement guide, anything unknown falls back to the guides list. */
+const LEGACY_HELP_SLUGS: Record<string, string> = {
+  'create-your-first-page': 'how-to-create-your-first-business-page',
+  'connect-custom-domain': 'how-to-create-your-first-business-page',
+  'billing-and-payments': '10-ways-to-get-more-customers-online',
+};
+
+function HelpSlugRedirect() {
+  const { slug } = useParams();
+  return <Navigate to={`/resources/guides/${LEGACY_HELP_SLUGS[slug ?? ''] ?? ''}`.replace(/\/$/, '')} replace />;
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -133,7 +144,7 @@ export default function App() {
         <Route path="/resources/guides/:slug" element={<GuideArticlePage />} />
         <Route path="/resources/:slug" element={<ResourceArticlePage />} />
         <Route path="/help" element={<HelpCenterPage />} />
-        <Route path="/help/:slug" element={<HelpArticlePage />} />
+        <Route path="/help/:slug" element={<HelpSlugRedirect />} />
         <Route path="/help/contact" element={<ContactSupportPage />} />
         <Route path="/help/tickets" element={<MyTicketsPage />} />
         <Route path="/help/feedback" element={<FeedbackPage />} />
@@ -153,7 +164,6 @@ export default function App() {
           <Route path="reviews" element={<Guard section="reviews"><AdminReviewsPage /></Guard>} />
           <Route path="qr-codes" element={<Guard section="qr-codes"><AdminQrCodesPage /></Guard>} />
           <Route path="announcements" element={<Guard section="announcements"><AdminAnnouncementsPage /></Guard>} />
-          <Route path="help-articles" element={<Guard section="announcements"><AdminHelpArticlesPage /></Guard>} />
           <Route path="guides" element={<Guard section="announcements"><AdminGuidesPage /></Guard>} />
           <Route path="analytics" element={<Guard section="analytics"><AdminAnalyticsPage /></Guard>} />
           <Route path="settings" element={<Guard section="settings"><AdminSettingsPage /></Guard>} />
