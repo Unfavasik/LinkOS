@@ -110,15 +110,30 @@ export const GuideArticlePage: React.FC = () => {
           </section>
         )}
 
-        {/* Video CTA */}
-        {guide.video && (
-          <button
-            type="button"
-            className="mt-6 w-full h-12 rounded-xl bg-blue-600 hover:bg-blue-500 active:bg-blue-700 transition-colors flex items-center justify-center gap-2 text-[14px] font-semibold text-white"
-          >
-            <PlayCircle className="w-5 h-5" aria-hidden="true" />
-            {guide.video}
-          </button>
+        {/* Video tutorial */}
+        {guide.video_url ? (
+          <section className="mt-6" aria-labelledby="guide-video-heading">
+            <h2 id="guide-video-heading" className="text-[19px] font-bold text-white">
+              {guide.video || 'Video tutorial'}
+            </h2>
+            <video
+              controls
+              playsInline
+              preload="metadata"
+              src={guide.video_url}
+              className="mt-3 w-full aspect-video rounded-2xl border border-white/10 bg-black"
+            />
+          </section>
+        ) : (
+          guide.video && (
+            <button
+              type="button"
+              className="mt-6 w-full h-12 rounded-xl bg-blue-600 hover:bg-blue-500 active:bg-blue-700 transition-colors flex items-center justify-center gap-2 text-[14px] font-semibold text-white"
+            >
+              <PlayCircle className="w-5 h-5" aria-hidden="true" />
+              {guide.video}
+            </button>
+          )
         )}
 
         <hr className="mt-8 border-white/10" />

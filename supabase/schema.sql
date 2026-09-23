@@ -328,6 +328,7 @@ create table if not exists public.guides (
   hero_alt text default '',
   learn jsonb default '[]'::jsonb,
   video text default '',
+  video_url text default '',
   tags jsonb default '[]'::jsonb,
   steps jsonb default '[]'::jsonb,
   is_published boolean default true,

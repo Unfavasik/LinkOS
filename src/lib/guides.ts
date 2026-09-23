@@ -26,7 +26,10 @@ export interface Guide {
   hero_url: string;
   hero_alt: string;
   learn: string[];
+  /** Button label for the video CTA, e.g. "Watch Video Tutorial (3:45)" */
   video: string;
+  /** Supabase Storage (WebM) or external video URL; empty = no video */
+  video_url: string;
   /** Topic tags shown as chips, e.g. ["Getting Started", "Templates"] */
   tags: string[];
   steps: GuideStep[];
@@ -57,6 +60,7 @@ function normalize(row: Record<string, unknown>): Guide {
     hero_alt: (row.hero_alt as string) || '',
     learn: Array.isArray(row.learn) ? (row.learn as string[]) : [],
     video: (row.video as string) || '',
+    video_url: (row.video_url as string) || '',
     tags: Array.isArray(row.tags) ? (row.tags as string[]) : [],
     steps: Array.isArray(row.steps) ? (row.steps as GuideStep[]) : [],
     is_published: row.is_published !== false,
@@ -107,6 +111,7 @@ export async function saveGuide(guide: Guide): Promise<{ ok: boolean; error?: st
     hero_alt: guide.hero_alt,
     learn: guide.learn,
     video: guide.video,
+    video_url: guide.video_url,
     tags: guide.tags,
     steps: guide.steps,
     is_published: guide.is_published,

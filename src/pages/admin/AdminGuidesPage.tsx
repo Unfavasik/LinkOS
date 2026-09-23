@@ -14,6 +14,7 @@ import {
   ArrowDown,
   Save,
   ImagePlus,
+  PlayCircle,
 } from 'lucide-react';
 import {
   loadAllGuides,
@@ -41,6 +42,7 @@ const emptyGuide = (): Guide => ({
   hero_alt: '',
   learn: [],
   video: '',
+  video_url: '',
   tags: [],
   steps: [],
   is_published: true,
@@ -196,6 +198,8 @@ export const AdminGuidesPage: React.FC = () => {
   const [tagsText, setTagsText] = useState('');
   const heroFileRef = useRef<HTMLInputElement>(null);
   const [heroUploading, setHeroUploading] = useState(false);
+  const videoFileRef = useRef<HTMLInputElement>(null);
+  const [videoUploading, setVideoUploading] = useState(false);
 
   const openEditor = (guide: Guide) => {
     setEditing(structuredClone(guide));
@@ -224,6 +228,22 @@ export const AdminGuidesPage: React.FC = () => {
     } finally {
       setHeroUploading(false);
       if (heroFileRef.current) heroFileRef.current.value = '';
+    }
+  };
+
+  const handleVideoFile = async (file: File | undefined) => {
+    if (!file || !editing) return;
+    setVideoUploading(true);
+    setFormError('');
+    try {
+      // Uploads are converted to WebM inside StorageService.uploadVideo.
+      const url = await StorageService.uploadVideo(file, 'products');
+      patch({ video_url: url });
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : 'Video upload failed.');
+    } finally {
+      setVideoUploading(false);
+      if (videoFileRef.current) videoFileRef.current.value = '';
     }
   };
 
@@ -277,7 +297,7 @@ export const AdminGuidesPage: React.FC = () => {
       <div>
         <PageHeader
           title={editing.id ? 'Edit Guide' : 'New Guide'}
-          subtitle="Steps render in order. Uploaded images are converted to WebP automatically."
+          subtitle="Steps render in order. Images become WebP, videos become WebM — automatically."
           actions={
             <span>
               <button
@@ -362,6 +382,64 @@ export const AdminGuidesPage: React.FC = () => {
                 <input value={editing.hero_url} onChange={(e) => patch({ hero_url: e.target.value })} placeholder="…or paste an image URL" aria-label="Hero image URL" className={`${inputCls} h-9 text-[12px]`} />
                 <input value={editing.hero_alt} onChange={(e) => patch({ hero_alt: e.target.value })} placeholder="Hero image description (alt text)" aria-label="Hero image description" className={`${inputCls} h-9 text-[12px]`} />
               </div>
+            </div>
+          </div>
+
+          {/* Video: upload (auto WebM) or paste a URL */}
+          <div className={`${PANEL} p-4 space-y-3`}>
+            <h2 className="text-[13px] font-bold text-slate-400 uppercase tracking-wider">Video tutorial</h2>
+            <div className="space-y-2">
+              {editing.video_url ? (
+                <video
+                  controls
+                  playsInline
+                  preload="metadata"
+                  src={editing.video_url}
+                  className="w-full max-w-sm aspect-video rounded-xl border border-white/10 bg-black"
+                />
+              ) : (
+                <span className="flex w-full max-w-sm aspect-video rounded-xl bg-white/[0.04] border border-dashed border-white/15 items-center justify-center">
+                  <PlayCircle className="w-8 h-8 text-slate-500" aria-hidden="true" />
+                </span>
+              )}
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => videoFileRef.current?.click()}
+                  disabled={videoUploading}
+                  className="inline-flex items-center gap-1.5 px-3 h-9 rounded-lg bg-blue-600/20 border border-blue-500/30 text-[12px] font-semibold text-blue-300 hover:bg-blue-600/30 disabled:opacity-50"
+                >
+                  <Upload className="w-3.5 h-3.5" aria-hidden="true" />
+                  {videoUploading ? 'Converting to WebM…' : 'Upload video'}
+                </button>
+                {editing.video_url && (
+                  <button
+                    type="button"
+                    onClick={() => patch({ video_url: '' })}
+                    className="text-[11px] text-red-400 hover:text-red-300 font-semibold"
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+              <input
+                ref={videoFileRef}
+                type="file"
+                accept="video/mp4,video/webm,video/quicktime,video/x-matroska,video/ogg"
+                onChange={(e) => handleVideoFile(e.target.files?.[0])}
+                className="sr-only"
+                aria-label="Upload video tutorial"
+              />
+              <input
+                value={editing.video_url}
+                onChange={(e) => patch({ video_url: e.target.value })}
+                placeholder="…or paste a video URL"
+                aria-label="Video URL"
+                className={`${inputCls} h-9 text-[12px]`}
+              />
+              <p className="text-[11px] text-slate-500">
+                Uploaded videos are converted to WebM and stored on Supabase. The label below becomes the player heading.
+              </p>
             </div>
           </div>
 
