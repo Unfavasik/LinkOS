@@ -51,6 +51,8 @@ interface TemplateApplyWizardProps {
    *  overwriting the user's My Page profile. */
   websiteMode?: boolean;
   onWebsitePublished?: (site: WebsiteRecord) => void;
+  /** Suggested URL slug, prefilled from the Create Website page's name field. */
+  initialSlug?: string;
 }
 
 interface ProductDraft {
@@ -156,6 +158,7 @@ export const TemplateApplyWizard: React.FC<TemplateApplyWizardProps> = ({
   onPublished,
   websiteMode = false,
   onWebsitePublished,
+  initialSlug,
 }) => {
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
@@ -171,7 +174,7 @@ export const TemplateApplyWizard: React.FC<TemplateApplyWizardProps> = ({
   const [businessName, setBusinessName] = useState(existingProfile?.business_name || '');
   const [category, setCategory] = useState(existingProfile?.category || template.category);
   const [description, setDescription] = useState(existingProfile?.description || '');
-  const [username, setUsername] = useState(existingProfile?.username || '');
+  const [username, setUsername] = useState(initialSlug || existingProfile?.username || '');
   const [usernameTouched, setUsernameTouched] = useState(Boolean(existingProfile));
   const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'taken' | 'free'>('idle');
 
@@ -316,7 +319,9 @@ export const TemplateApplyWizard: React.FC<TemplateApplyWizardProps> = ({
       case 2:
         return phone.trim().length >= 6;
       case 3:
-        return productDrafts.some((p) => p.name.trim().length >= 2);
+        // Products are optional when creating a website — the user may not
+        // have a catalog yet. My Page creation still requires one.
+        return websiteMode || productDrafts.some((p) => p.name.trim().length >= 2);
       default:
         return true;
     }

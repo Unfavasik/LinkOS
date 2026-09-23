@@ -43,7 +43,64 @@ function toRecord(row: Record<string, unknown>): WebsiteRecord {
   };
 }
 
+/* ---- Local fallback store -------------------------------------------------
+ * Sessions without a Supabase auth token (demo login) are rejected by the
+ * websites RLS policies, and Supabase may be unreachable entirely. Mirror
+ * the StorageService convention: try Supabase first, keep a local copy so
+ * the feature always works. */
+
+const LOCAL_WEBSITES_KEY = 'linkos_websites_local';
+
+function readLocalWebsites(): WebsiteRecord[] {
+  try {
+    const raw = localStorage.getItem(LOCAL_WEBSITES_KEY);
+    return raw ? (JSON.parse(raw) as WebsiteRecord[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeLocalWebsites(records: WebsiteRecord[]) {
+  try {
+    localStorage.setItem(LOCAL_WEBSITES_KEY, JSON.stringify(records));
+  } catch {
+    /* storage full or unavailable — non-fatal */
+  }
+}
+
+function upsertLocalWebsite(record: WebsiteRecord) {
+  const all = readLocalWebsites().filter((r) => r.id !== record.id);
+  all.unshift(record);
+  writeLocalWebsites(all);
+}
+
+function getLocalWebsite(id: string): WebsiteRecord | null {
+  return readLocalWebsites().find((r) => r.id === id) ?? null;
+}
+
+/** websites.owner_id is a uuid column, but local session ids (demo login)
+ *  are plain strings like "user_anant_1". Derive a stable uuid from the
+ *  local id so ownership stays consistent across sessions. */
+async function localOwnerUuid(localId: string): Promise<string> {
+  const data = new TextEncoder().encode(`linkos-website-owner:${localId}`);
+  const digest = new Uint8Array(await crypto.subtle.digest('SHA-1', data));
+  digest[6] = (digest[6] & 0x0f) | 0x50; // uuid version 5
+  digest[8] = (digest[8] & 0x3f) | 0x80; // RFC 4122 variant
+  const hex = Array.from(digest, (b) => b.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
+}
+
 async function currentUserId(): Promise<string | null> {
+  // The app keys all Supabase rows (profiles, products) by the local
+  // active-user id — real logins store the auth uid there, while demo
+  // sessions have no auth token at all. Prefer the local id so website
+  // ownership matches the rest of the user's data.
+  const active = StorageService.getActiveUser();
+  if (active?.id) {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(active.id)
+      ? active.id
+      : localOwnerUuid(active.id);
+  }
   if (!isSupabaseConfigured || !supabase) return null;
   const { data } = await supabase.auth.getUser();
   return data?.user?.id ?? null;

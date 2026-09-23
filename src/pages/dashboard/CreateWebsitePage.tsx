@@ -1,9 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Check, Loader2, Search } from 'lucide-react';
-import { ALL_TEMPLATES, TEMPLATE_CATEGORIES } from '../../data/templates';
+import { ArrowLeft, Check, Search } from 'lucide-react';
+import { ALL_TEMPLATES, TEMPLATE_CATEGORIES, type PageTemplate } from '../../data/templates';
 import { THEME_PALETTES } from '../../lib/theme';
-import { createWebsiteFromTemplate, isSlugAvailable, slugify, suggestSlugs } from '../../lib/websites';
+import { isSlugAvailable, slugify, suggestSlugs } from '../../lib/websites';
+import { StorageService } from '../../lib/storage';
+import type { Profile } from '../../types';
+import { TemplateApplyWizard } from '../../components/templates/TemplateApplyWizard';
 
 export const CreateWebsitePage: React.FC = () => {
   const navigate = useNavigate();
@@ -11,8 +14,19 @@ export const CreateWebsitePage: React.FC = () => {
   const [category, setCategory] = useState<string>('All');
   const [name, setName] = useState('');
   const [selected, setSelected] = useState<string | null>(null);
-  const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Picking a template opens the setup wizard (prefilled with the user's
+  // My Page data); publishing the wizard creates the website.
+  const [wizardTemplate, setWizardTemplate] = useState<PageTemplate | null>(null);
+  const [userProfile, setUserProfile] = useState<Profile | null>(null);
+  const [profileLoaded, setProfileLoaded] = useState(false);
+  useEffect(() => {
+    StorageService.getCurrentUserProfile()
+      .then(setUserProfile)
+      .catch(() => {})
+      .finally(() => setProfileLoaded(true));
+  }, []);
 
   // Live slug availability: as the user types a name, check whether the
   // derived URL is free and offer tappable alternatives when it is taken.
@@ -48,17 +62,10 @@ export const CreateWebsitePage: React.FC = () => {
     );
   }, [query, category]);
 
-  const create = async () => {
+  const create = () => {
     if (!selected) return;
-    setCreating(true);
     setError(null);
-    const site = await createWebsiteFromTemplate(selected, name.trim() || 'My Website');
-    setCreating(false);
-    if (!site) {
-      setError('Could not create the website. Please try again.');
-      return;
-    }
-    navigate(`/dashboard/websites/${site.id}`);
+    setWizardTemplate(ALL_TEMPLATES.find((t) => t.id === selected) ?? null);
   };
 
   return (
@@ -185,13 +192,26 @@ export const CreateWebsitePage: React.FC = () => {
           <button
             type="button"
             onClick={create}
-            disabled={creating}
-            className="inline-flex items-center gap-2 px-5 h-10 rounded-xl bg-blue-600 text-xs font-bold text-white hover:bg-blue-500 disabled:opacity-60 transition-colors"
+            className="inline-flex items-center gap-2 px-5 h-10 rounded-xl bg-blue-600 text-xs font-bold text-white hover:bg-blue-500 transition-colors"
           >
-            {creating && <Loader2 className="w-4 h-4 animate-spin" />}
-            {creating ? 'Creating…' : 'Create Website'}
+            Create Website
           </button>
         </div>
+      )}
+
+      {wizardTemplate && profileLoaded && (
+        <TemplateApplyWizard
+          template={wizardTemplate}
+          existingProfile={userProfile}
+          websiteMode
+          initialSlug={slugPreview}
+          onWebsitePublished={(site) => {
+            setWizardTemplate(null);
+            navigate(`/dashboard/websites/${site.id}`);
+          }}
+          onClose={() => setWizardTemplate(null)}
+          onPublished={() => setWizardTemplate(null)}
+        />
       )}
     </div>
   );

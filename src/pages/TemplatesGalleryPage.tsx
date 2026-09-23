@@ -74,9 +74,15 @@ export const TemplatesGalleryPage: React.FC = () => {
   const [wizardTemplate, setWizardTemplate] = useState<PageTemplate | null>(null);
   // Prefill the apply wizard with the signed-in user's My Page data so
   // creating a website starts from everything they already filled in.
+  // The wizard reads the profile once on mount, so we wait for the load
+  // to finish before opening it.
   const [userProfile, setUserProfile] = useState<Profile | null>(null);
+  const [profileLoaded, setProfileLoaded] = useState(false);
   React.useEffect(() => {
-    StorageService.getCurrentUserProfile().then(setUserProfile).catch(() => {});
+    StorageService.getCurrentUserProfile()
+      .then(setUserProfile)
+      .catch(() => {})
+      .finally(() => setProfileLoaded(true));
   }, []);
   const [paywall, setPaywall] = useState<{ name: string; id: string } | null>(null);
   const { data: overrides } = useTemplateOverrides();
@@ -326,7 +332,7 @@ export const TemplatesGalleryPage: React.FC = () => {
 
       <MobileTabBar active="Templates" />
 
-      {wizardTemplate && (
+      {wizardTemplate && profileLoaded && (
         <TemplateApplyWizard
           template={wizardTemplate}
           existingProfile={userProfile}
