@@ -167,6 +167,8 @@ export const EditorPage: React.FC<{ templateMode?: boolean }> = ({ templateMode 
   const [contactVis, setContactVis] = useState({ whatsapp: true, call: true, email: false, website: true, location: true });
   const [socialVis, setSocialVis] = useState({ instagram: true, facebook: true, youtube: false });
   const [seoVisible, setSeoVisible] = useState(true);
+  // Hooks must run unconditionally — this sits above the early returns below.
+  const up = useUploadProgress();
 
   const coverInputRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
@@ -303,8 +305,6 @@ export const EditorPage: React.FC<{ templateMode?: boolean }> = ({ templateMode 
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   };
-
-  const up = useUploadProgress();
 
   const upload = async (file: File, apply: (url: string) => void) => {
     try {
