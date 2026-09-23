@@ -313,12 +313,11 @@ alter default privileges in schema public
   grant select, insert, update, delete on tables to anon, authenticated, service_role;
 
 -- ============================================================
--- SEED — owner admin + templates
+-- SEED — admins + templates
+-- NOTE: no owner is seeded here. Create the owner from the app
+-- (Admin Panel → Manage Admins) or the Supabase dashboard after
+-- the first login, so the account belongs to a real Auth user.
 -- ============================================================
-insert into public.admins (email, role, is_active, display_name)
-values ('hello.devasik@gmail.com', 'owner', true, 'Dev asik')
-on conflict (email) do nothing;
-
 insert into public.admins (email, role, is_active, display_name)
 values ('ayatulsekh3037@gmail.com', 'admin', true, 'Ayatul')
 on conflict (email) do nothing;
