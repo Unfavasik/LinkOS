@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { Profile } from '../../types';
 import { StorageService } from '../../lib/storage';
+import { useUploadProgress, UploadProgressBar } from '../../components/UploadProgressBar';
 
 const COUNTRY_CODES = [
   { code: '+91', flag: '🇮🇳', label: 'India' },
@@ -70,7 +71,8 @@ const EditProfileForm: React.FC<{
     return match ? match[1] : '+91';
   });
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
+  const up = useUploadProgress();
+  const uploading = up.active;
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -96,14 +98,12 @@ const EditProfileForm: React.FC<{
     const file = e.target.files?.[0];
     if (!file) return;
     setError(null);
-    setUploading(true);
     try {
-      const url = await StorageService.uploadImage(file, 'avatars');
+      const url = await up.run('Processing photo…', (report) => StorageService.uploadImage(file, 'avatars', report));
       setAvatarUrl(url);
     } catch (err: any) {
       setError(err.message || 'Failed to upload photo.');
     } finally {
-      setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
@@ -224,6 +224,7 @@ const EditProfileForm: React.FC<{
             >
               <Camera className="w-4 h-4" /> Change Photo
             </button>
+            <UploadProgressBar {...up} tone="light" className="w-full" />
             {avatarUrl && (
               <button
                 type="button"

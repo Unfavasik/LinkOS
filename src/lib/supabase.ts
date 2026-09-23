@@ -2,15 +2,13 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 // Only public browser variables are read here. Service-role credentials
 // (SUPABASE_SECRET_KEY) belong exclusively in server-side environments.
-// The active project is the "_2" Supabase project; fall back to the base
-// pair and then the legacy VITE_ names.
-const supabaseUrl =
-  import.meta.env.SUPABASE_URL_2 ||
+// The active project is the base Supabase pair; fall back to the legacy
+// VITE_ names.
+export const supabaseUrl =
   import.meta.env.SUPABASE_URL ||
   import.meta.env.VITE_SUPABASE_URL ||
   '';
-const supabaseAnonKey =
-  import.meta.env.SUPABASE_PUBLISHABLE_KEY_2 ||
+export const supabaseAnonKey =
   import.meta.env.SUPABASE_PUBLISHABLE_KEY ||
   import.meta.env.VITE_SUPABASE_ANON_KEY ||
   '';

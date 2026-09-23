@@ -142,6 +142,9 @@ export const GuideArticlePage: React.FC = () => {
         <div className="mt-7 space-y-9">
           {guide.steps.map((step, i) => (
             <section key={`${step.title}-${i}`} aria-labelledby={`step-${i}`}>
+              {guide.show_step_numbers !== false && (
+                <p className="text-[12px] font-bold text-blue-400 uppercase tracking-wider">Step {i + 1}</p>
+              )}
               <h2 id={`step-${i}`} className="text-[19px] font-bold text-white">
                 {step.title}
               </h2>

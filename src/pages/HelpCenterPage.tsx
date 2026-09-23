@@ -124,19 +124,19 @@ const POPULAR_ARTICLES = [
     title: 'How to create your first business page',
     desc: 'Step-by-step guide to get you online.',
     icon: BookOpen,
-    to: '/help/create-your-first-page',
+    to: '/resources/guides/how-to-create-your-first-business-page',
   },
   {
-    title: 'How to connect a custom domain',
-    desc: 'Use your own domain in just a few clicks.',
-    icon: Globe,
-    to: '/help/connect-custom-domain',
+    title: 'Best templates for restaurants & cafés',
+    desc: 'Curated templates for food businesses.',
+    icon: LayoutGrid,
+    to: '/resources/guides/best-templates-for-restaurants-and-cafes',
   },
   {
-    title: 'How billing and payments work',
-    desc: 'Learn about plans, invoices and refunds.',
+    title: '10 ways to get more customers online',
+    desc: 'Practical, low-cost growth tips.',
     icon: FileText,
-    to: '/help/billing-and-payments',
+    to: '/resources/guides/10-ways-to-get-more-customers-online',
   },
 ];
 
@@ -219,7 +219,7 @@ export const HelpCenterPage: React.FC = () => {
               {CATEGORIES.map((cat) => (
                 <Link
                   key={cat.title}
-                  to="/help/create-your-first-page"
+                  to="/resources/guides"
                   className={`${cat.tile} rounded-2xl p-3 flex flex-col min-h-[150px] hover:shadow-md active:scale-[0.98] transition-all`}
                 >
                   <span className={`w-9 h-9 rounded-xl ${cat.iconBg} flex items-center justify-center`}>
@@ -281,7 +281,7 @@ export const HelpCenterPage: React.FC = () => {
             {/* Popular articles */}
             <div className="mt-7 flex items-center justify-between">
               <h2 className="text-[17px] font-bold text-slate-900">Popular Articles</h2>
-              <Link to="/help/create-your-first-page" className="flex items-center gap-1 text-[13px] font-semibold text-blue-600 hover:text-blue-500">
+              <Link to="/resources/guides" className="flex items-center gap-1 text-[13px] font-semibold text-blue-600 hover:text-blue-500">
                 View All
                 <ArrowRight className="w-4 h-4" aria-hidden="true" />
               </Link>

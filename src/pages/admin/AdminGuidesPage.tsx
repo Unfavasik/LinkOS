@@ -26,6 +26,7 @@ import {
   type GuideStep,
 } from '../../lib/guides';
 import { StorageService } from '../../lib/storage';
+import { useUploadProgress, UploadProgressBar } from '../../components/UploadProgressBar';
 import { PageHeader, Badge, EmptyState, LoadingRows, ErrorState, PANEL, TH, TD } from './AdminShared';
 
 async function fetchGuides(): Promise<Guide[]> {
@@ -45,6 +46,7 @@ const emptyGuide = (): Guide => ({
   video_url: '',
   tags: [],
   steps: [],
+  show_step_numbers: true,
   is_published: true,
 });
 
@@ -53,26 +55,25 @@ const StepEditor: React.FC<{
   step: GuideStep;
   index: number;
   total: number;
+  showNumbers: boolean;
   onChange: (next: GuideStep) => void;
   onRemove: () => void;
   onMove: (dir: -1 | 1) => void;
-}> = ({ step, index, total, onChange, onRemove, onMove }) => {
+}> = ({ step, index, total, showNumbers, onChange, onRemove, onMove }) => {
   const fileRef = useRef<HTMLInputElement>(null);
-  const [uploading, setUploading] = useState(false);
+  const up = useUploadProgress();
   const [uploadError, setUploadError] = useState('');
 
   const handleFile = async (file: File | undefined) => {
     if (!file) return;
-    setUploading(true);
     setUploadError('');
     try {
       // Uploads are converted to WebP inside StorageService.uploadImage.
-      const url = await StorageService.uploadImage(file, 'products');
+      const url = await up.run('Processing image…', (report) => StorageService.uploadImage(file, 'products', report));
       onChange({ ...step, image_url: url });
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : 'Upload failed. Please try again.');
     } finally {
-      setUploading(false);
       if (fileRef.current) fileRef.current.value = '';
     }
   };
@@ -83,7 +84,9 @@ const StepEditor: React.FC<{
   return (
     <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-3.5 space-y-2.5">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[12px] font-bold text-slate-400 uppercase tracking-wider">Step {index + 1}</span>
+        <span className="text-[12px] font-bold text-slate-400 uppercase tracking-wider">
+          {showNumbers ? `Step ${index + 1}` : 'Step'}
+        </span>
         <span className="flex items-center gap-1">
           <button
             type="button"
@@ -144,12 +147,13 @@ const StepEditor: React.FC<{
             <button
               type="button"
               onClick={() => fileRef.current?.click()}
-              disabled={uploading}
+              disabled={up.active}
               className="inline-flex items-center gap-1.5 px-3 h-8 rounded-lg bg-blue-600/20 border border-blue-500/30 text-[12px] font-semibold text-blue-300 hover:bg-blue-600/30 disabled:opacity-50"
             >
               <Upload className="w-3.5 h-3.5" aria-hidden="true" />
-              {uploading ? 'Converting to WebP…' : 'Upload image'}
+              {up.active ? 'Processing…' : 'Upload image'}
             </button>
+            <UploadProgressBar {...up} />
             {step.image_url && (
               <button
                 type="button"
@@ -197,9 +201,9 @@ export const AdminGuidesPage: React.FC = () => {
   const [formError, setFormError] = useState('');
   const [tagsText, setTagsText] = useState('');
   const heroFileRef = useRef<HTMLInputElement>(null);
-  const [heroUploading, setHeroUploading] = useState(false);
+  const heroUp = useUploadProgress();
   const videoFileRef = useRef<HTMLInputElement>(null);
-  const [videoUploading, setVideoUploading] = useState(false);
+  const videoUp = useUploadProgress();
 
   const openEditor = (guide: Guide) => {
     setEditing(structuredClone(guide));
@@ -218,31 +222,27 @@ export const AdminGuidesPage: React.FC = () => {
 
   const handleHeroFile = async (file: File | undefined) => {
     if (!file || !editing) return;
-    setHeroUploading(true);
     setFormError('');
     try {
-      const url = await StorageService.uploadImage(file, 'products');
+      const url = await heroUp.run('Processing image…', (report) => StorageService.uploadImage(file, 'products', report));
       patch({ hero_url: url });
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'Upload failed.');
     } finally {
-      setHeroUploading(false);
       if (heroFileRef.current) heroFileRef.current.value = '';
     }
   };
 
   const handleVideoFile = async (file: File | undefined) => {
     if (!file || !editing) return;
-    setVideoUploading(true);
     setFormError('');
     try {
       // Uploads are converted to WebM inside StorageService.uploadVideo.
-      const url = await StorageService.uploadVideo(file, 'products');
+      const url = await videoUp.run('Processing video…', (report) => StorageService.uploadVideo(file, 'products', report));
       patch({ video_url: url });
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'Video upload failed.');
     } finally {
-      setVideoUploading(false);
       if (videoFileRef.current) videoFileRef.current.value = '';
     }
   };
@@ -372,12 +372,13 @@ export const AdminGuidesPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => heroFileRef.current?.click()}
-                  disabled={heroUploading}
+                  disabled={heroUp.active}
                   className="inline-flex items-center gap-1.5 px-3 h-9 rounded-lg bg-blue-600/20 border border-blue-500/30 text-[12px] font-semibold text-blue-300 hover:bg-blue-600/30 disabled:opacity-50"
                 >
                   <Upload className="w-3.5 h-3.5" aria-hidden="true" />
-                  {heroUploading ? 'Converting to WebP…' : 'Upload image'}
+                  {heroUp.active ? 'Processing…' : 'Upload image'}
                 </button>
+                <UploadProgressBar {...heroUp} />
                 <input ref={heroFileRef} type="file" accept="image/jpeg,image/png,image/webp,image/svg+xml" onChange={(e) => handleHeroFile(e.target.files?.[0])} className="sr-only" aria-label="Upload hero image" />
                 <input value={editing.hero_url} onChange={(e) => patch({ hero_url: e.target.value })} placeholder="…or paste an image URL" aria-label="Hero image URL" className={`${inputCls} h-9 text-[12px]`} />
                 <input value={editing.hero_alt} onChange={(e) => patch({ hero_alt: e.target.value })} placeholder="Hero image description (alt text)" aria-label="Hero image description" className={`${inputCls} h-9 text-[12px]`} />
@@ -406,12 +407,13 @@ export const AdminGuidesPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => videoFileRef.current?.click()}
-                  disabled={videoUploading}
+                  disabled={videoUp.active}
                   className="inline-flex items-center gap-1.5 px-3 h-9 rounded-lg bg-blue-600/20 border border-blue-500/30 text-[12px] font-semibold text-blue-300 hover:bg-blue-600/30 disabled:opacity-50"
                 >
                   <Upload className="w-3.5 h-3.5" aria-hidden="true" />
-                  {videoUploading ? 'Converting to WebM…' : 'Upload video'}
+                  {videoUp.active ? 'Processing…' : 'Upload video'}
                 </button>
+                <UploadProgressBar {...videoUp} />
                 {editing.video_url && (
                   <button
                     type="button"
@@ -474,14 +476,25 @@ export const AdminGuidesPage: React.FC = () => {
           <div className={`${PANEL} p-4 space-y-3`}>
             <div className="flex items-center justify-between">
               <h2 className="text-[13px] font-bold text-slate-400 uppercase tracking-wider">Steps ({editing.steps.length})</h2>
-              <button
-                type="button"
-                onClick={() => patch({ steps: [...editing.steps, { title: '', body: '' }] })}
-                className="inline-flex items-center gap-1.5 px-3 h-8 rounded-lg bg-blue-600 text-[12px] font-semibold text-white hover:bg-blue-500"
-              >
-                <Plus className="w-3.5 h-3.5" aria-hidden="true" />
-                Add step
-              </button>
+              <div className="flex items-center gap-2">
+                <label className="inline-flex items-center gap-1.5 text-[12px] font-medium text-slate-400 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={editing.show_step_numbers}
+                    onChange={(e) => patch({ show_step_numbers: e.target.checked })}
+                    className="w-3.5 h-3.5 accent-blue-500"
+                  />
+                  Step numbers
+                </label>
+                <button
+                  type="button"
+                  onClick={() => patch({ steps: [...editing.steps, { title: '', body: '' }] })}
+                  className="inline-flex items-center gap-1.5 px-3 h-8 rounded-lg bg-blue-600 text-[12px] font-semibold text-white hover:bg-blue-500"
+                >
+                  <Plus className="w-3.5 h-3.5" aria-hidden="true" />
+                  Add step
+                </button>
+              </div>
             </div>
             {editing.steps.length === 0 && (
               <p className="text-[12px] text-slate-500 py-2">No steps yet — add the first one.</p>
@@ -493,6 +506,7 @@ export const AdminGuidesPage: React.FC = () => {
                   step={step}
                   index={i}
                   total={editing.steps.length}
+                  showNumbers={editing.show_step_numbers}
                   onChange={(next) => {
                     const steps = [...editing.steps];
                     steps[i] = next;

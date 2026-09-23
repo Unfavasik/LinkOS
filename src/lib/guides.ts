@@ -33,6 +33,8 @@ export interface Guide {
   /** Topic tags shown as chips, e.g. ["Getting Started", "Templates"] */
   tags: string[];
   steps: GuideStep[];
+  /** When false the published guide hides "Step 1, Step 2…" numbering. */
+  show_step_numbers: boolean;
   is_published: boolean;
   created_at?: string;
   updated_at?: string;
@@ -63,6 +65,7 @@ function normalize(row: Record<string, unknown>): Guide {
     video_url: (row.video_url as string) || '',
     tags: Array.isArray(row.tags) ? (row.tags as string[]) : [],
     steps: Array.isArray(row.steps) ? (row.steps as GuideStep[]) : [],
+    show_step_numbers: row.show_step_numbers !== false,
     is_published: row.is_published !== false,
     created_at: row.created_at as string,
     updated_at: row.updated_at as string,
@@ -114,6 +117,7 @@ export async function saveGuide(guide: Guide): Promise<{ ok: boolean; error?: st
     video_url: guide.video_url,
     tags: guide.tags,
     steps: guide.steps,
+    show_step_numbers: guide.show_step_numbers,
     is_published: guide.is_published,
     updated_at: new Date().toISOString(),
   };
