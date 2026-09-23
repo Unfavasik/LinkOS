@@ -70,7 +70,7 @@ export const AdminEditProfileModal: React.FC<AdminEditProfileModalProps> = ({
     }
     setSaving(true);
     setError('');
-    const updated = await updateAdminProfile(admin.id, {
+    const updated = await updateAdminProfile({ id: admin.id, email: admin.email }, {
       display_name: name.trim() || undefined,
       avatar_url: avatarUrl,
     });

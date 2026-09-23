@@ -267,16 +267,20 @@ export function clearAdminCache() {
   cachedAdmin = undefined;
 }
 
-/** Update the signed-in admin's display name / avatar and refresh the cache. */
+/** Update the signed-in admin's display name / avatar and refresh the cache.
+ *  Matches by email — the stable identifier. Filtering by id silently matches
+ *  zero rows when the admins row id drifts from the auth user id. */
 export async function updateAdminProfile(
-  adminId: string,
+  admin: Pick<AdminRecord, 'id' | 'email'>,
   patch: { display_name?: string; avatar_url?: string | null }
 ): Promise<AdminRecord | null> {
-  if (!isSupabaseConfigured || !supabase) return null;
+  if (!isSupabaseConfigured || !supabase || !admin.email) return null;
   const { data, error } = await supabase
     .from('admins')
-    .update({ ...patch, updated_at: new Date().toISOString() })
-    .eq('id', adminId)
+    .upsert(
+      { email: admin.email.toLowerCase().trim(), ...patch, updated_at: new Date().toISOString() },
+      { onConflict: 'email' },
+    )
     .select('id, email, role, is_active, display_name, avatar_url')
     .maybeSingle();
   if (error) {
