@@ -294,12 +294,15 @@ export const TemplatePreviewPage: React.FC = () => {
         />
       </div>
 
-      {/* Apply wizard — collects the user's own details and publishes their own URL */}
+      {/* Apply wizard — collects the user's own details and publishes their own URL.
+          Creates a user-owned website so it shows up under Dashboard > My Websites. */}
       {wizardOpen && (
         <TemplateApplyWizard
           template={template}
           existingProfile={existingProfile}
+          websiteMode
           onClose={() => setWizardOpen(false)}
+          onWebsitePublished={(site) => navigate(`/dashboard/websites/${site.id}`)}
           onPublished={() => navigate('/dashboard')}
         />
       )}

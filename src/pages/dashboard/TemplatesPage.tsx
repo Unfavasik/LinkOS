@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useOutletContext, Link, useSearchParams } from 'react-router-dom';
+import { useOutletContext, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Search,
   LayoutTemplate,
@@ -25,6 +25,7 @@ import { THEME_PALETTES, FONT_STACKS } from '../../lib/theme';
 import { fetchSavedTemplates, toggleSavedTemplate, type SavedTemplate } from '../../lib/savedTemplates';
 
 export const TemplatesPage: React.FC = () => {
+  const navigate = useNavigate();
   const { profile, setProfile } = useOutletContext<{
     profile: Profile | null;
     setProfile: (p: Profile) => void;
@@ -296,12 +297,16 @@ export const TemplatesPage: React.FC = () => {
         </div>
       )}
 
-      {/* Apply wizard */}
+      {/* Apply wizard. Applying a template that is NOT already the user's My Page
+          template creates a new user-owned website (shows up in My Websites).
+          Re-applying the current template keeps editing My Page in place. */}
       {wizardTemplate && (
         <TemplateApplyWizard
           template={wizardTemplate}
           existingProfile={profile}
+          websiteMode={wizardTemplate.id !== profile?.template_id}
           onClose={() => setWizardTemplate(null)}
+          onWebsitePublished={(site) => navigate(`/dashboard/websites/${site.id}`)}
           onPublished={handlePublished}
         />
       )}

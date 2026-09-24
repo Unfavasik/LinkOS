@@ -253,31 +253,30 @@ export async function createWebsiteFromContent(
   const tpl = getTemplateById(templateId);
   if (!uid || !tpl) return null;
   const slug = await uniqueSlug(preferredSlug?.trim() || name || tpl.name);
-  if (!isSupabaseConfigured || !supabase) return null;
-  const { data, error } = await supabase
-    .from('websites')
-    .insert({ owner_id: uid, template_id: tpl.id, name: name.trim() || tpl.name, slug, status: 'live', content })
-    .select('*')
-    .maybeSingle();
-  if (error || !data) {
+  if (isSupabaseConfigured && supabase) {
+    const { data, error } = await supabase
+      .from('websites')
+      .insert({ owner_id: uid, template_id: tpl.id, name: name.trim() || tpl.name, slug, status: 'live', content })
+      .select('*')
+      .maybeSingle();
+    if (!error && data) return toRecord(data);
     // Demo sessions have no auth token, so RLS rejects the insert. Keep the
     // site in the local store so the flow still completes end to end.
     console.log('[v0] createWebsiteFromContent falling back to local store:', error?.message);
-    const record: WebsiteRecord = {
-      id: `local-${crypto.randomUUID()}`,
-      owner_id: uid,
-      template_id: tpl.id,
-      name: name.trim() || tpl.name,
-      slug,
-      status: 'live',
-      content,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-    upsertLocalWebsite(record);
-    return record;
   }
-  return toRecord(data);
+  const record: WebsiteRecord = {
+    id: `local-${crypto.randomUUID()}`,
+    owner_id: uid,
+    template_id: tpl.id,
+    name: name.trim() || tpl.name,
+    slug,
+    status: 'live',
+    content,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+  upsertLocalWebsite(record);
+  return record;
 }
 
 export async function createWebsiteFromTemplate(

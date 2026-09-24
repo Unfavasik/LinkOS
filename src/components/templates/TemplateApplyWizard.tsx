@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { mutate as globalMutate } from 'swr';
 import QRCode from 'qrcode';
 import {
   X,
@@ -502,6 +503,8 @@ export const TemplateApplyWizard: React.FC<TemplateApplyWizardProps> = ({
         }
         setCreatedSite(site);
         setPublishedProfile(profile);
+        // Refresh the My Websites list so the new site appears immediately.
+        globalMutate('my-websites');
         onWebsitePublished?.(site);
         return;
       }
@@ -645,14 +648,14 @@ export const TemplateApplyWizard: React.FC<TemplateApplyWizardProps> = ({
           <div className="mt-4 grid grid-cols-2 gap-2.5">
             <button
               type="button"
-              onClick={() => navigate('/dashboard')}
+              onClick={() => navigate(websiteMode ? '/dashboard/websites' : '/dashboard')}
               className="inline-flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-bold transition-colors"
             >
               <LayoutDashboard className="w-4 h-4" />
-              Dashboard
+              {websiteMode ? 'My Websites' : 'Dashboard'}
             </button>
             <a
-              href={`/${publishedProfile.username}`}
+              href={websiteMode && createdSite ? `/site/${createdSite.slug}` : `/${publishedProfile.username}`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-xs font-bold text-zinc-800 transition-colors"

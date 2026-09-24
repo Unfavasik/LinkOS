@@ -282,7 +282,9 @@ export const TemplateDetailPage: React.FC = () => {
         <TemplateApplyWizard
           template={template}
           existingProfile={existingProfile}
+          websiteMode
           onClose={() => setWizardOpen(false)}
+          onWebsitePublished={(site) => navigate(`/dashboard/websites/${site.id}`)}
           onPublished={() => navigate('/dashboard')}
         />
       )}
