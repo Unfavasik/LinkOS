@@ -56,6 +56,7 @@ export interface Profile {
   whatsapp_enabled?: boolean;
   plan: PlanTier;
   verified?: boolean;
+  is_suspended?: boolean;
   instagram?: string;
   facebook?: string;
   youtube?: string;

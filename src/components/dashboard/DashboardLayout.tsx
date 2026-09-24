@@ -36,6 +36,7 @@ import { LinkOsLogo } from '../common/LinkOsLogo';
 import { StorageService } from '../../lib/storage';
 import { Profile } from '../../types';
 import { ShareModal } from '../profile/ShareModal';
+import { SuspendedAccountPage } from '../../pages/SuspendedAccountPage';
 import { useIsAdmin, isKnownAdminEmail } from '../../lib/adminAuth';
 
 import { loadPublishedAnnouncements, type Announcement } from '../../lib/announcements';
@@ -88,6 +89,12 @@ export const DashboardLayout: React.FC = () => {
   useEffect(() => {
     if (isVerifiedAdmin) navigate('/admin', { replace: true });
   }, [isVerifiedAdmin, navigate]);
+
+  // Suspended accounts are locked out of the whole dashboard until an admin
+  // unsuspends them — show the suspension notice instead of any dashboard UI.
+  if (profile?.is_suspended) {
+    return <SuspendedAccountPage profile={profile} />;
+  }
 
   const username = profile?.username || '';
   const fullPageUrl = `${window.location.origin}/${username}`;

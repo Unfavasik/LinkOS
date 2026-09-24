@@ -35,6 +35,8 @@ import { TemplateDetailPage } from './pages/TemplateDetailPage';
 import { TemplatePreviewPage } from './pages/TemplatePreviewPage';
 import { PublicProfilePage } from './pages/PublicProfilePage';
 import { PublicWebsitePage } from './pages/PublicWebsitePage';
+import { SuspendedAccountPage } from './pages/SuspendedAccountPage';
+import { LegalPage } from './pages/LegalPage';
 import { MyWebsitesPage } from './pages/dashboard/MyWebsitesPage';
 import { CreateWebsitePage } from './pages/dashboard/CreateWebsitePage';
 import { WebsiteManagePage } from './pages/dashboard/WebsiteManagePage';
@@ -149,6 +151,7 @@ export default function App() {
         <Route path="/resources/business-tips" element={<GuidesListPage tagFilter="Business Tip" />} />
         <Route path="/resources/guides/:slug" element={<GuideArticlePage />} />
         <Route path="/resources/:slug" element={<ResourceArticlePage />} />
+        <Route path="/legal" element={<LegalPage />} />
         <Route path="/help" element={<HelpCenterPage />} />
         <Route path="/help/:slug" element={<HelpSlugRedirect />} />
         <Route path="/help/contact" element={<ContactSupportPage />} />
