@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { useOutletContext, Link } from 'react-router-dom';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useOutletContext, Link, useSearchParams } from 'react-router-dom';
 import {
   Search,
   LayoutTemplate,
@@ -13,6 +13,8 @@ import {
   Palette,
   Eye,
   Rocket,
+  Heart,
+  Bookmark,
 } from 'lucide-react';
 import { Profile } from '../../types';
 import { StorageService } from '../../lib/storage';
@@ -20,6 +22,7 @@ import { TEMPLATES, TEMPLATE_CATEGORIES, PageTemplate, TemplateCategory, getTemp
 import { TemplatePreview } from '../../components/templates/TemplatePreview';
 import { TemplateApplyWizard } from '../../components/templates/TemplateApplyWizard';
 import { THEME_PALETTES, FONT_STACKS } from '../../lib/theme';
+import { fetchSavedTemplates, toggleSavedTemplate, type SavedTemplate } from '../../lib/savedTemplates';
 
 export const TemplatesPage: React.FC = () => {
   const { profile, setProfile } = useOutletContext<{
@@ -32,12 +35,44 @@ export const TemplatesPage: React.FC = () => {
   const [selected, setSelected] = useState<PageTemplate | null>(null);
   const [wizardTemplate, setWizardTemplate] = useState<PageTemplate | null>(null);
   const [publishedName, setPublishedName] = useState<string | null>(null);
+  const [savedRows, setSavedRows] = useState<SavedTemplate[]>([]);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const view = searchParams.get('view') === 'saved' ? 'saved' : 'all';
 
   const currentTemplate = getTemplateById(profile?.template_id);
 
+  useEffect(() => {
+    let cancelled = false;
+    const user = StorageService.getActiveUser();
+    if (!user) return;
+    fetchSavedTemplates(user.id).then((rows) => {
+      if (!cancelled) setSavedRows(rows);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const savedIds = useMemo(() => new Set(savedRows.map((row) => row.template_id)), [savedRows]);
+
+  const handleToggleSave = async (template: PageTemplate) => {
+    const user = StorageService.getActiveUser();
+    if (!user) return;
+    const userName = profile?.business_name || user.email || 'LinkOS User';
+    const nowSaved = await toggleSavedTemplate(user.id, userName, template.id, template.name);
+    setSavedRows(await fetchSavedTemplates(user.id));
+    if (nowSaved && view === 'all') {
+      // Keep the user on the grid; the heart fill is the confirmation.
+    }
+  };
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return TEMPLATES.filter((t) => {
+    const base =
+      view === 'saved'
+        ? TEMPLATES.filter((t) => savedIds.has(t.id))
+        : TEMPLATES;
+    return base.filter((t) => {
       const matchesCategory = category === 'All' || t.category === category;
       const matchesSearch =
         !q ||
@@ -47,7 +82,7 @@ export const TemplatesPage: React.FC = () => {
         t.tags.some((tag) => tag.includes(q));
       return matchesCategory && matchesSearch;
     });
-  }, [search, category]);
+  }, [search, category, view, savedIds]);
 
   const businessName = profile?.business_name || 'Your Business';
   const pageCategory = profile?.category || 'Business';
@@ -71,6 +106,27 @@ export const TemplatesPage: React.FC = () => {
           <p className="text-xs text-zinc-500 mt-1">
             {TEMPLATES.length} ready-made designs. Preview, modify and publish to your live page in one click.
           </p>
+        </div>
+        <div className="inline-flex rounded-lg border border-zinc-200 bg-white p-0.5 self-start">
+          <button
+            type="button"
+            onClick={() => setSearchParams({})}
+            className={`px-3 py-1.5 rounded-md text-[11px] font-semibold transition-colors ${
+              view === 'all' ? 'bg-zinc-900 text-white' : 'text-zinc-600 hover:text-zinc-900'
+            }`}
+          >
+            All Templates
+          </button>
+          <button
+            type="button"
+            onClick={() => setSearchParams({ view: 'saved' })}
+            className={`px-3 py-1.5 rounded-md text-[11px] font-semibold inline-flex items-center gap-1.5 transition-colors ${
+              view === 'saved' ? 'bg-zinc-900 text-white' : 'text-zinc-600 hover:text-zinc-900'
+            }`}
+          >
+            <Bookmark className="w-3.5 h-3.5" />
+            Saved{savedRows.length > 0 ? ` (${savedRows.length})` : ''}
+          </button>
         </div>
         {currentTemplate && (
           <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-[11px] font-semibold text-emerald-700 self-start">
@@ -146,8 +202,18 @@ export const TemplatesPage: React.FC = () => {
       {/* Template grid */}
       {filtered.length === 0 ? (
         <div className="py-16 text-center">
-          <LayoutTemplate className="w-8 h-8 text-zinc-300 mx-auto mb-3" />
-          <p className="text-xs text-zinc-500">No templates match "{search}". Try a different keyword.</p>
+          {view === 'saved' ? (
+            <>
+              <Bookmark className="w-8 h-8 text-zinc-300 mx-auto mb-3" />
+              <p className="text-xs text-zinc-500">No saved templates yet.</p>
+              <p className="text-[11px] text-zinc-400 mt-1">Tap the heart on any template to save it here.</p>
+            </>
+          ) : (
+            <>
+              <LayoutTemplate className="w-8 h-8 text-zinc-300 mx-auto mb-3" />
+              <p className="text-xs text-zinc-500">No templates match "{search}". Try a different keyword.</p>
+            </>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -172,6 +238,19 @@ export const TemplatesPage: React.FC = () => {
                     Pro
                   </span>
                 )}
+                <button
+                  type="button"
+                  onClick={() => handleToggleSave(template)}
+                  aria-label={savedIds.has(template.id) ? `Remove ${template.name} from saved` : `Save ${template.name}`}
+                  title={savedIds.has(template.id) ? 'Saved — tap to remove' : 'Save template'}
+                  className={`absolute top-4 right-4 z-10 p-1.5 rounded-full backdrop-blur-sm border transition-colors ${
+                    savedIds.has(template.id)
+                      ? 'bg-rose-50 border-rose-200 text-rose-500'
+                      : 'bg-white/80 border-zinc-200 text-zinc-400 hover:text-rose-500 hover:border-rose-200'
+                  }`}
+                >
+                  <Heart className={`w-3.5 h-3.5 ${savedIds.has(template.id) ? 'fill-rose-500' : ''}`} />
+                </button>
 
                 <TemplatePreview
                   template={template}
@@ -185,6 +264,15 @@ export const TemplatesPage: React.FC = () => {
                     <h3 className="text-xs font-bold text-zinc-900 truncate">{template.name}</h3>
                     <span className="text-[10px] text-zinc-400 shrink-0">{template.category}</span>
                   </div>
+                  {view === 'saved' &&
+                    (() => {
+                      const row = savedRows.find((r) => r.template_id === template.id);
+                      return row ? (
+                        <p className="text-[10px] text-rose-500 font-medium mt-0.5 truncate">
+                          Saved by {row.user_name}
+                        </p>
+                      ) : null;
+                    })()}
                   <div className="mt-2 grid grid-cols-[1fr_1.5fr] gap-2">
                     <Link
                       to={`/templates/preview/${template.id}`}
@@ -350,7 +438,7 @@ export const TemplatesPage: React.FC = () => {
                     className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-bold transition-colors"
                   >
                     <Rocket className="w-4 h-4" />
-                    {profile?.template_id === selected.id ? 'Edit & Republish' : 'Apply — Set Up My Page'}
+                    {profile?.template_id === selected.id ? 'Edit & Republish' : 'Apply — Set Up My Website'}
                   </button>
                   <button
                     type="button"
