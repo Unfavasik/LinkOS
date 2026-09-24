@@ -4,7 +4,7 @@ import { Profile, Product } from '../../types';
 import { LinksList } from './LinksList';
 import { ReviewsSection } from './ReviewsSection';
 import { BusinessInfoCard } from './BusinessInfoCard';
-import { ActionRow, QueueSection, ShareCard, SiteFooter } from './TemplateSite';
+import { ActionRow, QueueSection, ShareCard, SiteFooter, OwnerBadge } from './TemplateSite';
 import { GoogleMapEmbed, buildMapQuery } from '../common/GoogleMapEmbed';
 
 /* eslint-disable react-refresh/only-export-components */
@@ -53,7 +53,7 @@ export function TerminalLayout({ profile, products, links, reviews, onSelectProd
         </section>
         {links.length > 0 && <section className="pt-6"><p className="text-[10px] text-[#4CAF50] opacity-70">// links</p><LinksList links={links} profile={profile} /></section>}
         <div className="pt-6"><ReviewsSection reviews={reviews} /><BusinessInfoCard profile={profile} /></div>
-        <SiteFooter />
+        <SiteFooter profile={profile} />
       </div>
     </div>
   );
@@ -90,7 +90,7 @@ export function EditorialLayout({ profile, products, links, reviews, onSelectPro
         </section>
         {links.length > 0 && <section className="py-4 border-t border-[#1A1611]/25"><h2 className="text-[11px] uppercase tracking-[0.3em] text-[#8A7B63] mb-3">Correspondence</h2><LinksList links={links} profile={profile} /></section>}
         <div className="py-4"><ReviewsSection reviews={reviews} /><div className="py-3"><BusinessInfoCard profile={profile} /></div></div>
-        <SiteFooter />
+        <SiteFooter profile={profile} />
       </div>
     </div>
   );
@@ -125,7 +125,7 @@ export function StorybookLayout({ profile, products, links, reviews, onSelectPro
         </section>
         {links.length > 0 && <section className="mt-8 text-left"><LinksList links={links} profile={profile} /></section>}
         <div className="mt-8 text-left"><ReviewsSection reviews={reviews} /><div className="py-3"><BusinessInfoCard profile={profile} /></div></div>
-        <SiteFooter />
+        <SiteFooter profile={profile} />
       </div>
     </div>
   );
@@ -160,7 +160,7 @@ export function AuroraLayout({ profile, products, links, reviews, onSelectProduc
         </section>
         {links.length > 0 && <section className="mt-8"><LinksList links={links} profile={profile} /></section>}
         <div className="mt-8"><ReviewsSection reviews={reviews} /><div className="py-3"><BusinessInfoCard profile={profile} /></div></div>
-        <SiteFooter />
+        <SiteFooter profile={profile} />
       </div>
     </div>
   );
@@ -200,7 +200,7 @@ export function SwissLayout({ profile, products, links, reviews, onSelectProduct
         </section>
         {links.length > 0 && <section className="px-5 pb-4"><LinksList links={links} profile={profile} /></section>}
         <div className="px-5 pb-6"><ReviewsSection reviews={reviews} /><div className="py-3"><BusinessInfoCard profile={profile} /></div></div>
-        <SiteFooter />
+        <SiteFooter profile={profile} />
       </div>
     </div>
   );
@@ -242,7 +242,7 @@ export function VelvetLayout({ profile, products, links, reviews, onSelectProduc
         </section>
         {links.length > 0 && <section className="mt-8"><LinksList links={links} profile={profile} /></section>}
         <div className="mt-8"><ReviewsSection reviews={reviews} /><div className="py-3"><BusinessInfoCard profile={profile} /></div></div>
-        <SiteFooter />
+        <SiteFooter profile={profile} />
       </div>
     </div>
   );
@@ -278,7 +278,7 @@ export function BonfireLayout({ profile, products, links, reviews, onSelectProdu
         </section>
         {links.length > 0 && <section className="pt-6"><LinksList links={links} profile={profile} /></section>}
         <div className="py-6"><ReviewsSection reviews={reviews} /><div className="py-3"><BusinessInfoCard profile={profile} /></div></div>
-        <SiteFooter />
+        <SiteFooter profile={profile} />
       </div>
     </div>
   );
@@ -321,7 +321,7 @@ export function DarkroomLayout({ profile, products, links, reviews, onSelectProd
         </section>
         {links.length > 0 && <section className="px-5 pb-6"><LinksList links={links} profile={profile} /></section>}
         <div className="px-5 pb-8"><ReviewsSection reviews={reviews} /><div className="py-3"><BusinessInfoCard profile={profile} /></div></div>
-        <SiteFooter />
+        <SiteFooter profile={profile} />
       </div>
     </div>
   );
@@ -362,7 +362,7 @@ export function GraphiteLayout({ profile, products, links, reviews, onSelectProd
         </section>
         {links.length > 0 && <section className="px-5 pb-4"><LinksList links={links} profile={profile} /></section>}
         <div className="px-5 pb-6"><ReviewsSection reviews={reviews} /><div className="py-3"><BusinessInfoCard profile={profile} /></div></div>
-        <SiteFooter />
+        <SiteFooter profile={profile} />
       </div>
     </div>
   );
@@ -427,7 +427,7 @@ export function BentoLayout({ profile, products, links, reviews, onSelectProduct
         })()}
         {links.length > 0 && <section className="bg-white rounded-3xl p-4 shadow-sm"><LinksList links={links} profile={profile} /></section>}
         <div className="bg-white rounded-3xl p-4 shadow-sm"><ReviewsSection reviews={reviews} /><div className="py-3"><BusinessInfoCard profile={profile} /></div></div>
-        <SiteFooter />
+        <SiteFooter profile={profile} />
       </div>
     </div>
   );
@@ -466,7 +466,7 @@ export function BlueprintLayout({ profile, products, links, reviews, onSelectPro
         </section>
         {links.length > 0 && <section className="mt-4 border border-[#3E6B96] bg-white/80 p-4"><LinksList links={links} profile={profile} /></section>}
         <div className="mt-4 border border-[#3E6B96] bg-white/80 p-4"><ReviewsSection reviews={reviews} /><div className="py-3"><BusinessInfoCard profile={profile} /></div></div>
-        <SiteFooter />
+        <SiteFooter profile={profile} />
       </div>
     </div>
   );
@@ -504,7 +504,7 @@ export function BrutalLayout({ profile, products, links, reviews, onSelectProduc
         </section>
         {links.length > 0 && <section className="mt-6"><LinksList links={links} profile={profile} /></section>}
         <div className="mt-6"><ReviewsSection reviews={reviews} /><div className="py-3"><BusinessInfoCard profile={profile} /></div></div>
-        <SiteFooter />
+        <SiteFooter profile={profile} />
       </div>
     </div>
   );
@@ -541,7 +541,7 @@ export function NotebookLayout({ profile, products, links, reviews, onSelectProd
         </section>
         {links.length > 0 && <section className="mt-8"><LinksList links={links} profile={profile} /></section>}
         <div className="mt-8"><ReviewsSection reviews={reviews} /><div className="py-3"><BusinessInfoCard profile={profile} /></div></div>
-        <SiteFooter />
+        <SiteFooter profile={profile} />
       </div>
     </div>
   );
@@ -577,7 +577,7 @@ export function StickerLayout({ profile, products, links, reviews, onSelectProdu
         </section>
         {links.length > 0 && <section className="mt-8"><LinksList links={links} profile={profile} /></section>}
         <div className="mt-8"><ReviewsSection reviews={reviews} /><div className="py-3"><BusinessInfoCard profile={profile} /></div></div>
-        <SiteFooter />
+        <SiteFooter profile={profile} />
       </div>
     </div>
   );
@@ -612,7 +612,7 @@ export function LinenLayout({ profile, products, links, reviews, onSelectProduct
         </section>
         {links.length > 0 && <section className="mt-14"><LinksList links={links} profile={profile} /></section>}
         <div className="mt-12"><ReviewsSection reviews={reviews} /><div className="py-3"><BusinessInfoCard profile={profile} /></div></div>
-        <SiteFooter />
+        <SiteFooter profile={profile} />
       </div>
     </div>
   );
@@ -649,7 +649,7 @@ export function CandyLayout({ profile, products, links, reviews, onSelectProduct
         </section>
         {links.length > 0 && <section className="mt-8"><LinksList links={links} profile={profile} /></section>}
         <div className="mt-8"><ReviewsSection reviews={reviews} /><div className="py-3"><BusinessInfoCard profile={profile} /></div></div>
-        <SiteFooter />
+        <SiteFooter profile={profile} />
       </div>
     </div>
   );
@@ -681,7 +681,7 @@ export function MonoLayout({ profile, products, links, reviews, onSelectProduct,
         </section>
         {links.length > 0 && <section className="mt-10 border-t border-black/10 pt-6"><LinksList links={links} profile={profile} /></section>}
         <div className="mt-10"><ReviewsSection reviews={reviews} /><div className="py-3"><BusinessInfoCard profile={profile} /></div></div>
-        <SiteFooter />
+        <SiteFooter profile={profile} />
       </div>
     </div>
   );
@@ -717,7 +717,7 @@ export function DuskLayout({ profile, products, links, reviews, onSelectProduct,
         </section>
         {links.length > 0 && <section className="mt-8"><LinksList links={links} profile={profile} /></section>}
         <div className="mt-8"><ReviewsSection reviews={reviews} /><div className="py-3"><BusinessInfoCard profile={profile} /></div></div>
-        <SiteFooter />
+        <SiteFooter profile={profile} />
       </div>
     </div>
   );
@@ -756,7 +756,7 @@ export function ForestLayout({ profile, products, links, reviews, onSelectProduc
         </section>
         {links.length > 0 && <section className="mt-8"><LinksList links={links} profile={profile} /></section>}
         <div className="mt-8"><ReviewsSection reviews={reviews} /><div className="py-3"><BusinessInfoCard profile={profile} /></div></div>
-        <SiteFooter />
+        <SiteFooter profile={profile} />
       </div>
     </div>
   );
@@ -792,7 +792,7 @@ export function MarketLayout({ profile, products, links, reviews, onSelectProduc
         </section>
         {links.length > 0 && <section className="pb-4"><LinksList links={links} profile={profile} /></section>}
         <div className="pb-6"><ReviewsSection reviews={reviews} /><div className="py-3"><BusinessInfoCard profile={profile} /></div></div>
-        <SiteFooter />
+        <SiteFooter profile={profile} />
       </div>
     </div>
   );
@@ -1127,9 +1127,12 @@ export function CafeProLayout({ profile, products, links, reviews, onSelectProdu
         {links.length > 0 && <section className="pt-4"><LinksList links={links} profile={profile} /></section>}
 
         {/* Footer */}
-        <footer className="mt-6 pt-4 border-t border-white/5 flex items-center justify-between text-[11px] text-zinc-500">
-          <span>Powered by <span className="font-bold text-zinc-300">LinkOS</span></span>
-          <a href="/templates" className="font-semibold text-sky-400 hover:text-sky-300">Create your own page →</a>
+        <footer className="mt-6 pt-4 border-t border-white/5 flex flex-col items-center gap-2 text-[11px] text-zinc-500">
+          <OwnerBadge profile={profile} />
+          <div className="flex items-center justify-between w-full">
+            <span>Powered by <span className="font-bold text-zinc-300">LinkOS</span></span>
+            <a href="/templates" className="font-semibold text-sky-400 hover:text-sky-300">Create your own page →</a>
+          </div>
         </footer>
       </div>
     </div>
@@ -1555,9 +1558,12 @@ export function GarageProLayout({ profile, products, links, reviews, onSelectPro
 
         {links.length > 0 && <section className="pb-2"><LinksList links={links} profile={profile} /></section>}
 
-        <footer className="mt-2 pb-6 pt-4 border-t border-slate-200 dark:border-white/10 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
-          <span>Powered by <span className="font-bold text-slate-700 dark:text-slate-200">LinkOS</span></span>
-          <a href="/templates" className="font-semibold text-blue-600 hover:text-blue-500">Create your own page →</a>
+        <footer className="mt-2 pb-6 pt-4 border-t border-slate-200 dark:border-white/10 flex flex-col items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
+          <OwnerBadge profile={profile} />
+          <div className="flex items-center justify-between w-full">
+            <span>Powered by <span className="font-bold text-slate-700 dark:text-slate-200">LinkOS</span></span>
+            <a href="/templates" className="font-semibold text-blue-600 hover:text-blue-500">Create your own page →</a>
+          </div>
         </footer>
       </div>
     </div>
@@ -1957,6 +1963,7 @@ export function GodiProLayout({ profile, products, links, reviews, onSelectProdu
 
         {/* ── Footer ── */}
         <footer className="mt-4 pb-24 pt-5 border-t border-white/10 flex flex-col items-center gap-2 text-center">
+          <OwnerBadge profile={profile} />
           <a href="/" className="inline-flex items-center gap-1.5 text-xs text-white/50 hover:text-white/70 transition-colors group">
             <span>Powered by</span>
             <Link2 className="w-3.5 h-3.5 -rotate-45 text-white/70" aria-hidden="true" />
