@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Globe, Plus, Eye, ExternalLink, MoreHorizontal, LayoutTemplate, RefreshCw, Trash2, Pencil } from 'lucide-react';
 import useSWR from 'swr';
 import { fetchMyWebsites, deleteWebsite, setWebsiteStatus, summarize, type WebsiteSummary } from '../../lib/websites';
+import { WebsitePreviewModal } from '../../components/dashboard/WebsitePreviewModal';
 
 const timeAgo = (iso: string) => {
   const diff = Date.now() - new Date(iso).getTime();
@@ -17,6 +18,7 @@ const timeAgo = (iso: string) => {
 const WebsiteCard: React.FC<{ site: WebsiteSummary; onChanged: () => void }> = ({ site, onChanged }) => {
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   return (
     <div className="group relative rounded-2xl border border-zinc-200 bg-white shadow-sm hover:shadow-md transition-shadow overflow-hidden">
@@ -107,12 +109,20 @@ const WebsiteCard: React.FC<{ site: WebsiteSummary; onChanged: () => void }> = (
           >
             Manage
           </Link>
-          <Link
-            to={`/dashboard/websites/${site.id}/edit`}
+          <button
+            type="button"
+            onClick={() => setPreviewOpen(true)}
             className="flex-1 inline-flex items-center justify-center gap-1.5 h-8 rounded-lg border border-zinc-300 text-[11px] font-bold text-zinc-700 hover:bg-zinc-50 transition-colors"
           >
             <Eye className="w-3.5 h-3.5" />
             Preview
+          </button>
+          <Link
+            to={`/dashboard/websites/${site.id}/edit`}
+            className="inline-flex items-center justify-center gap-1.5 h-8 px-3 rounded-lg border border-zinc-300 text-[11px] font-bold text-zinc-700 hover:bg-zinc-50 transition-colors"
+          >
+            <Pencil className="w-3.5 h-3.5" />
+            Edit
           </Link>
           {site.status === 'live' && (
             <a
@@ -127,6 +137,7 @@ const WebsiteCard: React.FC<{ site: WebsiteSummary; onChanged: () => void }> = (
           )}
         </div>
       </div>
+      {previewOpen && <WebsitePreviewModal websiteId={site.id} onClose={() => setPreviewOpen(false)} />}
     </div>
   );
 };
