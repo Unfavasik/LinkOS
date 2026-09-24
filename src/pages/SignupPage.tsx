@@ -112,7 +112,7 @@ export const SignupPage: React.FC = () => {
         // An invited admin signing up for the first time goes straight to the
         // admin panel; everyone else starts onboarding.
         const adminRoute = await verifyAdmin(data.user.email || email, data.user.id);
-        navigate(adminRoute ? '/admin' : '/onboarding');
+        navigate(adminRoute ? '/admin' : '/dashboard/websites/new');
         return;
       }
 
@@ -127,7 +127,7 @@ export const SignupPage: React.FC = () => {
           await StorageService.saveProfile(p);
         }
       }
-      navigate('/onboarding');
+      navigate('/dashboard/websites/new');
     } catch (err: any) {
       setError(err.message || 'Failed to create account.');
     } finally {
@@ -149,7 +149,7 @@ export const SignupPage: React.FC = () => {
     }
     // Fast mock social sign in for testing
     StorageService.loginUser(`${provider}.user@linkos.dev`);
-    navigate('/onboarding');
+    navigate('/dashboard/websites/new');
   };
 
   return (
