@@ -37,7 +37,7 @@ import { StorageService } from '../../lib/storage';
 import { Profile } from '../../types';
 import { ShareModal } from '../profile/ShareModal';
 import { useIsAdmin, isKnownAdminEmail } from '../../lib/adminAuth';
-import { fetchMyWebsites, type WebsiteRecord } from '../../lib/websites';
+
 import { loadPublishedAnnouncements, type Announcement } from '../../lib/announcements';
 import { useUserNotifications } from '../../lib/userNotifications';
 
@@ -54,12 +54,6 @@ export const DashboardLayout: React.FC = () => {
   const [confirmLogout, setConfirmLogout] = useState(false);
   const isVerifiedAdmin = useIsAdmin();
 
-  // The "My Website" tab opens the latest website's editor, or the website
-  // setup wizard when the user has not created one yet.
-  const { data: websites } = useSWR('dashboard-my-websites', fetchMyWebsites, {
-    revalidateOnFocus: false,
-  });
-  const latestSite: WebsiteRecord | undefined = websites?.[0];
   // Latest published announcement, shown inside the menu.
   const { data: announcements } = useSWR('dashboard-announcements', loadPublishedAnnouncements, {
     revalidateOnFocus: false,
@@ -112,9 +106,6 @@ export const DashboardLayout: React.FC = () => {
   const navItems = [
     { label: 'Overview', path: '/dashboard', icon: LayoutDashboard, exact: true },
     { label: 'My Websites', path: '/dashboard/websites', icon: Globe },
-    latestSite
-      ? { label: 'My Website', path: `/dashboard/websites/${latestSite.id}/edit`, icon: Globe }
-      : { label: 'My Website', path: '/dashboard/websites/new', icon: Globe },
     { label: 'Templates', path: '/dashboard/templates', icon: LayoutTemplate },
     { label: 'Saved Templates', path: '/dashboard/templates?view=saved', query: 'view=saved', icon: Bookmark },
     { label: 'Products', path: '/dashboard/products', icon: Package },

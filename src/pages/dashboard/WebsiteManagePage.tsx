@@ -10,6 +10,7 @@ import {
 } from '../../lib/websites';
 import { getTemplateById } from '../../data/templates';
 import { StorageService } from '../../lib/storage';
+import { WebsitePreviewModal } from '../../components/dashboard/WebsitePreviewModal';
 
 const SECTIONS = [
   { id: 'overview', label: 'Overview', icon: LayoutTemplate },
@@ -31,8 +32,16 @@ export const WebsiteManagePage: React.FC = () => {
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
   const [savingSettings, setSavingSettings] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   const { data: site, mutate } = useSWR(['website', websiteId], () => fetchWebsite(websiteId));
+
+  React.useEffect(() => {
+    if (site) {
+      setName(site.name);
+      setSlug(site.slug);
+    }
+  }, [site?.id, site?.name, site?.slug]);
 
   if (!site) {
     return (
@@ -107,13 +116,14 @@ export const WebsiteManagePage: React.FC = () => {
             <p className="mt-1 text-[11px] text-zinc-500">{tpl?.name || 'Custom'} template</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Link
-              to={`/dashboard/websites/${site.id}/edit`}
+            <button
+              type="button"
+              onClick={() => setPreviewOpen(true)}
               className="inline-flex items-center gap-1.5 px-3 h-9 rounded-xl border border-zinc-300 text-[11px] font-bold text-zinc-700 hover:bg-zinc-50"
             >
               <Eye className="w-3.5 h-3.5" />
               Preview
-            </Link>
+            </button>
             {isLive && (
               <a
                 href={`/site/${site.slug}`}
@@ -159,49 +169,7 @@ export const WebsiteManagePage: React.FC = () => {
       </div>
 
       {/* Overview */}
-      {section === 'overview' && (
-        <div className="mt-4 grid grid-cols-2 lg:grid-cols-4 gap-3">
-          {[
-            { label: 'Total Visitors', value: '—' },
-            { label: 'Page Views', value: '—' },
-            { label: 'WhatsApp Clicks', value: '—' },
-            { label: 'Contact Submissions', value: '—' },
-          ].map((k) => (
-            <div key={k.label} className="rounded-2xl border border-zinc-200 bg-white p-4">
-              <p className="text-[11px] font-bold text-zinc-500">{k.label}</p>
-              <p className="mt-1 text-xl font-extrabold text-zinc-900">{k.value}</p>
-            </div>
-          ))}
-          <div className="col-span-2 lg:col-span-4 rounded-2xl border border-zinc-200 bg-white p-4">
-            <h2 className="text-sm font-bold text-zinc-900">Quick actions</h2>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <Link
-                to={`/dashboard/websites/${site.id}/edit`}
-                className="inline-flex items-center gap-1.5 px-4 h-9 rounded-xl bg-blue-600 text-[11px] font-bold text-white hover:bg-blue-500"
-              >
-                <FileText className="w-3.5 h-3.5" />
-                Edit Content &amp; Design
-              </Link>
-              <button
-                type="button"
-                onClick={() => setSection('analytics')}
-                className="inline-flex items-center gap-1.5 px-4 h-9 rounded-xl border border-zinc-300 text-[11px] font-bold text-zinc-700 hover:bg-zinc-50"
-              >
-                <BarChart3 className="w-3.5 h-3.5" />
-                View Analytics
-              </button>
-              <button
-                type="button"
-                onClick={() => setSection('settings')}
-                className="inline-flex items-center gap-1.5 px-4 h-9 rounded-xl border border-zinc-300 text-[11px] font-bold text-zinc-700 hover:bg-zinc-50"
-              >
-                <Settings className="w-3.5 h-3.5" />
-                Settings
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {section === 'overview' && <WebsiteOverview siteId={site.id} onOpenAnalytics={() => setSection('analytics')} onOpenSettings={() => setSection('settings')} />}
 
       {/* Content / Design → editor */}
       {(section === 'content' || section === 'design') && (
@@ -252,7 +220,7 @@ export const WebsiteManagePage: React.FC = () => {
             </label>
             <input
               id="ws-name"
-              value={name || site.name}
+              value={name}
               onChange={(e) => setName(e.target.value)}
               className="mt-1.5 w-full h-10 rounded-xl border border-zinc-300 px-3 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
@@ -263,7 +231,7 @@ export const WebsiteManagePage: React.FC = () => {
               <span className="font-mono text-xs text-zinc-400">linkos.app/</span>
               <input
                 id="ws-slug"
-                value={slug || site.slug}
+                value={slug}
                 onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
                 className="flex-1 font-mono text-sm text-zinc-900 focus:outline-none"
               />
@@ -297,6 +265,59 @@ export const WebsiteManagePage: React.FC = () => {
           </div>
         </div>
       )}
+      {previewOpen && <WebsitePreviewModal websiteId={site.id} onClose={() => setPreviewOpen(false)} />}
+    </div>
+  );
+};
+
+const WebsiteOverview: React.FC<{
+  siteId: string;
+  onOpenAnalytics: () => void;
+  onOpenSettings: () => void;
+}> = ({ siteId, onOpenAnalytics, onOpenSettings }) => {
+  const { data } = useSWR(['website-analytics', siteId], () => StorageService.getAnalyticsSummary(siteId));
+  const cards = [
+    { label: 'Total Visitors', value: data?.unique_visitors ?? 0 },
+    { label: 'Page Views', value: data?.total_views ?? 0 },
+    { label: 'WhatsApp Clicks', value: data?.whatsapp_clicks ?? 0 },
+    { label: 'Call Clicks', value: data?.call_clicks ?? 0 },
+  ];
+  return (
+    <div className="mt-4 grid grid-cols-2 lg:grid-cols-4 gap-3">
+      {cards.map((k) => (
+        <div key={k.label} className="rounded-2xl border border-zinc-200 bg-white p-4">
+          <p className="text-[11px] font-bold text-zinc-500">{k.label}</p>
+          <p className="mt-1 text-xl font-extrabold text-zinc-900">{k.value}</p>
+        </div>
+      ))}
+      <div className="col-span-2 lg:col-span-4 rounded-2xl border border-zinc-200 bg-white p-4">
+        <h2 className="text-sm font-bold text-zinc-900">Quick actions</h2>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Link
+            to={`/dashboard/websites/${siteId}/edit`}
+            className="inline-flex items-center gap-1.5 px-4 h-9 rounded-xl bg-blue-600 text-[11px] font-bold text-white hover:bg-blue-500"
+          >
+            <FileText className="w-3.5 h-3.5" />
+            Edit Content &amp; Design
+          </Link>
+          <button
+            type="button"
+            onClick={onOpenAnalytics}
+            className="inline-flex items-center gap-1.5 px-4 h-9 rounded-xl border border-zinc-300 text-[11px] font-bold text-zinc-700 hover:bg-zinc-50"
+          >
+            <BarChart3 className="w-3.5 h-3.5" />
+            View Analytics
+          </button>
+          <button
+            type="button"
+            onClick={onOpenSettings}
+            className="inline-flex items-center gap-1.5 px-4 h-9 rounded-xl border border-zinc-300 text-[11px] font-bold text-zinc-700 hover:bg-zinc-50"
+          >
+            <Settings className="w-3.5 h-3.5" />
+            Settings
+          </button>
+        </div>
+      </div>
     </div>
   );
 };
