@@ -8,7 +8,7 @@ import {
   Quote, Info, BadgeCheck, MapPin, MessageCircle, Phone, Navigation, Link2,
 } from 'lucide-react';
 import { LinkOsLogo } from '../components/common/LinkOsLogo';
-import { FullscreenMenu } from '../components/common/FullscreenMenu';
+import { MenuDrawer } from '../components/common/MenuDrawer';
 
 const Pill = ({ children, dark = false }: { children: ReactNode; dark?: boolean }) => (
   <span
@@ -351,7 +351,7 @@ export default function AboutPage() {
           </section>
         </div>
       </main>
-      <FullscreenMenu open={menuOpen} onClose={() => setMenuOpen(false)} />
+      <MenuDrawer open={menuOpen} onClose={() => setMenuOpen(false)} />
     </div>
   );
 }

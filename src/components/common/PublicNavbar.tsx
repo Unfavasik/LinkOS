@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { ChevronDown, BookOpen, Headset, LifeBuoy, MessageSquareHeart, Info, FileText } from 'lucide-react';
 import { LinkOsLogo } from './LinkOsLogo';
 import { AuthNavButtons } from './AuthNavButtons';
-import { FullscreenMenu } from './FullscreenMenu';
+import { MenuDrawer } from './MenuDrawer';
 
 const MAIN_LINKS = [
   { label: 'Home', to: '/' },
@@ -38,11 +38,10 @@ export const PublicNavbar: React.FC<{ mobileCentered?: boolean }> = ({ mobileCen
 
   return (
     <>
-    {/* The fullscreen menu must live OUTSIDE the header: the header's
-        backdrop-blur creates a containing block that traps fixed positioning
-        inside the 64px-tall bar, causing horizontal overflow on mid-width
-        screens. */}
-    <FullscreenMenu open={menuOpen} onClose={() => setMenuOpen(false)} />
+    {/* Drawer must live OUTSIDE the header: the header's backdrop-blur creates
+        a containing block that traps the drawer's fixed positioning inside the
+        64px-tall bar, causing horizontal overflow on mid-width screens. */}
+    <MenuDrawer open={menuOpen} onClose={() => setMenuOpen(false)} />
     <header className="sticky top-0 z-50 bg-[#060D1A]/90 backdrop-blur-md border-b border-white/5">
       {/* Contact Support mobile variant: logo left, menu button right */}
       {mobileCentered && (
