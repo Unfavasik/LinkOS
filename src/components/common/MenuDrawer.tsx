@@ -16,7 +16,6 @@ import {
   HelpCircle,
   LogIn,
   UserPlus,
-  UserRound,
   ShieldCheck,
   Crown,
   ArrowRight,
@@ -29,6 +28,7 @@ import {
   Headset,
   MessageSquareHeart,
   LifeBuoy,
+  Scale,
 } from 'lucide-react';
 import { LinkOsLogo } from './LinkOsLogo';
 import { StorageService } from '../../lib/storage';
@@ -68,6 +68,7 @@ const COMPANY_ITEMS: MenuItem[] = [
   { label: 'Contact Support', icon: Headset, to: '/help/contact' },
   { label: 'My Support Tickets', icon: LifeBuoy, to: '/help/tickets' },
   { label: 'Feedback', icon: MessageSquareHeart, to: '/help/feedback' },
+  { label: 'Terms & Policies', icon: Scale, to: '/legal' },
 ];
 
 const ACCOUNT_ITEMS_LOGGED_OUT: MenuItem[] = [
@@ -75,10 +76,8 @@ const ACCOUNT_ITEMS_LOGGED_OUT: MenuItem[] = [
   { label: 'Sign Up', icon: UserPlus, to: '/signup' },
 ];
 
-const ACCOUNT_ITEMS_LOGGED_IN: MenuItem[] = [
-  { label: 'My Account', icon: UserRound, to: '/dashboard', chevron: true },
-];
-
+// Logged-in users reach the dashboard via the "Go to Dashboard" CTA at the
+// bottom of the drawer, so no extra account entry is needed here.
 const ACCOUNT_ITEMS_ADMIN: MenuItem[] = [
   { label: 'Admin Panel', icon: ShieldCheck, to: '/admin', chevron: true },
 ];
@@ -128,6 +127,7 @@ const SectionLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 
 export const MenuDrawer: React.FC<MenuDrawerProps> = ({ open, onClose }) => {
   const admin = useIsAdmin();
+  const loggedIn = Boolean(StorageService.getActiveUser());
 
   return (
     <div
@@ -197,17 +197,15 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({ open, onClose }) => {
 
           <hr className="my-4 border-white/10" />
 
-          {/* Account */}
-          <nav className="flex flex-col gap-0.5" aria-label="Account">
-            <SectionLabel>Account</SectionLabel>
-            {(admin
-              ? ACCOUNT_ITEMS_ADMIN
-              : StorageService.getActiveUser()
-              ? ACCOUNT_ITEMS_LOGGED_IN
-              : ACCOUNT_ITEMS_LOGGED_OUT).map((item) => (
-              <ItemRow key={item.label} item={item} onClose={onClose} />
-            ))}
-          </nav>
+          {/* Account — hidden for signed-in users (they have the dashboard CTA) */}
+          {(admin || !loggedIn) && (
+            <nav className="flex flex-col gap-0.5" aria-label="Account">
+              <SectionLabel>Account</SectionLabel>
+              {(admin ? ACCOUNT_ITEMS_ADMIN : ACCOUNT_ITEMS_LOGGED_OUT).map((item) => (
+                <ItemRow key={item.label} item={item} onClose={onClose} />
+              ))}
+            </nav>
+          )}
 
           <hr className="my-4 border-white/10" />
 
@@ -228,13 +226,13 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({ open, onClose }) => {
             <ArrowRight className="w-5 h-5 text-zinc-400 shrink-0" />
           </button>
 
-          {/* CTA */}
+          {/* CTA — signup for visitors, dashboard for signed-in users */}
           <Link
-            to="/signup"
+            to={loggedIn ? '/dashboard' : '/signup'}
             onClick={onClose}
             className="mt-4 flex items-center justify-center gap-2 w-full py-3.5 rounded-xl bg-[#1D6FF2] hover:bg-[#3B82F6] text-white text-[15px] font-bold transition-colors"
           >
-            Create Your Free Page
+            {loggedIn ? 'Go to Dashboard' : 'Create Your Free Page'}
             <ArrowRight className="w-4.5 h-4.5" />
           </Link>
 
