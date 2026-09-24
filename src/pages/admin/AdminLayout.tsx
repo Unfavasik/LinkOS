@@ -63,6 +63,7 @@ const NAV_ITEMS: {
   { label: 'Reviews & Reports', icon: BarChart3, to: '/admin/reviews', section: 'reviews' },
   { label: 'QR Codes', icon: QrCode, to: '/admin/qr-codes', section: 'qr-codes' },
   { label: 'Announcements', icon: Megaphone, to: '/admin/announcements', section: 'announcements' },
+  { label: 'Send Notifications', icon: Bell, to: '/admin/notifications', section: 'announcements' },
   { label: 'Guides', icon: GraduationCap, to: '/admin/guides', section: 'announcements' },
   { label: 'Analytics', icon: BarChart3, to: '/admin/analytics', section: 'analytics' },
   { label: 'Settings', icon: Settings, to: '/admin/settings', section: 'settings' },

@@ -11,6 +11,9 @@ import {
   Eye,
   EyeOff,
   Globe,
+  Bell,
+  Users,
+  User as UserIcon,
 } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import {
@@ -32,6 +35,7 @@ import {
   updateAnnouncement,
   type Announcement,
 } from '../../lib/announcements';
+import { sendNotification } from '../../lib/userNotifications';
 
 /* ---------- Inquiries / Leads ---------- */
 
@@ -337,7 +341,16 @@ export const AdminAnnouncementsPage: React.FC = () => {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !body.trim()) return;
-    await addAnnouncement({ title, body, published: publishNow });
+    const saved = await addAnnouncement({ title, body, published: publishNow });
+    // A published announcement also lands in every user's notifications.
+    if (saved && publishNow) {
+      await sendNotification({
+        kind: 'announcement',
+        title: saved.title,
+        body: saved.body,
+        link: '/announcements',
+      });
+    }
     setTitle('');
     setBody('');
     setPublishNow(true);
@@ -441,7 +454,17 @@ export const AdminAnnouncementsPage: React.FC = () => {
                     aria-label={a.published ? `Unpublish ${a.title}` : `Publish ${a.title}`}
                     title={a.published ? 'Unpublish' : 'Publish'}
                     onClick={async () => {
-                      await updateAnnouncement(a.id, { published: !a.published });
+                      const publishing = !a.published;
+                      await updateAnnouncement(a.id, { published: publishing });
+                      // Publishing a draft fans it out to user notifications too.
+                      if (publishing) {
+                        await sendNotification({
+                          kind: 'announcement',
+                          title: a.title,
+                          body: a.body,
+                          link: '/announcements',
+                        });
+                      }
                       refresh();
                     }}
                     className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-blue-300 hover:bg-blue-500/10 transition-colors shrink-0"
@@ -463,6 +486,241 @@ export const AdminAnnouncementsPage: React.FC = () => {
               ))}
             </ul>
           )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/* ---------- Send Notifications ---------- */
+
+interface ProfileOption {
+  id: string;
+  business_name: string | null;
+  username: string | null;
+}
+
+export const AdminNotificationsPage: React.FC = () => {
+  const [mode, setMode] = useState<'all' | 'personal'>('all');
+  const [users, setUsers] = useState<ProfileOption[]>([]);
+  const [recipient, setRecipient] = useState('');
+  const [userQuery, setUserQuery] = useState('');
+  const [title, setTitle] = useState('');
+  const [body, setBody] = useState('');
+  const [link, setLink] = useState('');
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (isSupabaseConfigured && supabase) {
+      supabase
+        .from('profiles')
+        .select('id, business_name, username')
+        .order('created_at', { ascending: false })
+        .limit(300)
+        .then(({ data }) => {
+          if (!cancelled) setUsers((data ?? []) as ProfileOption[]);
+        });
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const filteredUsers = users.filter((u) => {
+    const q = userQuery.trim().toLowerCase();
+    if (!q) return true;
+    return (u.business_name || '').toLowerCase().includes(q) || (u.username || '').toLowerCase().includes(q);
+  });
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title.trim()) return;
+    if (mode === 'personal' && !recipient) {
+      setError('Pick a user to send the personal notification to.');
+      return;
+    }
+    setSending(true);
+    setError(null);
+    const ok = await sendNotification({
+      recipientId: mode === 'personal' ? recipient : null,
+      kind: 'general',
+      title,
+      body,
+      link: link.trim() || null,
+    });
+    setSending(false);
+    if (!ok) {
+      setError('Could not send the notification. Please try again.');
+      return;
+    }
+    setTitle('');
+    setBody('');
+    setLink('');
+    setRecipient('');
+    setSent(true);
+    window.setTimeout(() => setSent(false), 2500);
+  };
+
+  return (
+    <div>
+      <PageHeader
+        title="Send Notifications"
+        subtitle="Notify every user at once, or message one user personally. Notifications appear in the user's dashboard bell."
+      />
+
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+        <form onSubmit={submit} className={`${PANEL} p-4 lg:col-span-2 h-fit`} aria-label="New notification">
+          {/* Audience toggle */}
+          <div className="grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-white/[0.04] border border-white/[0.06] mb-4">
+            <button
+              type="button"
+              onClick={() => setMode('all')}
+              className={`inline-flex items-center justify-center gap-1.5 h-9 rounded-lg text-[12.5px] font-semibold transition-colors ${
+                mode === 'all' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Users className="w-4 h-4" aria-hidden="true" />
+              All Users
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode('personal')}
+              className={`inline-flex items-center justify-center gap-1.5 h-9 rounded-lg text-[12.5px] font-semibold transition-colors ${
+                mode === 'personal' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <UserIcon className="w-4 h-4" aria-hidden="true" />
+              Personal
+            </button>
+          </div>
+
+          {mode === 'personal' && (
+            <div className="mb-4">
+              <label htmlFor="notif-user" className="block text-[12px] font-semibold text-slate-300 mb-1.5">
+                Send to user
+              </label>
+              <input
+                id="notif-user"
+                value={userQuery}
+                onChange={(e) => setUserQuery(e.target.value)}
+                placeholder="Search by business name or username…"
+                className="w-full h-10 px-3.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-[13px] text-slate-200 placeholder:text-slate-500 outline-none focus:border-blue-500/50 transition-all"
+              />
+              <div className="mt-2 max-h-44 overflow-y-auto rounded-xl border border-white/[0.06] divide-y divide-white/[0.04]">
+                {filteredUsers.length === 0 ? (
+                  <p className="px-3 py-3 text-[12px] text-slate-500">No users match your search.</p>
+                ) : (
+                  filteredUsers.slice(0, 30).map((u) => (
+                    <button
+                      key={u.id}
+                      type="button"
+                      onClick={() => {
+                        setRecipient(u.id);
+                        setUserQuery(u.business_name || u.username || u.id);
+                      }}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-left transition-colors ${
+                        recipient === u.id ? 'bg-blue-600/20' : 'hover:bg-white/[0.04]'
+                      }`}
+                    >
+                      <span className="w-7 h-7 rounded-full bg-blue-500/15 text-blue-300 text-[10px] font-bold flex items-center justify-center shrink-0">
+                        {initials(u.business_name || u.username)}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-[12.5px] font-semibold text-slate-200 truncate">
+                          {u.business_name || 'Unnamed business'}
+                        </span>
+                        {u.username && <span className="block text-[11px] text-slate-500 truncate">linkos.in/{u.username}</span>}
+                      </span>
+                      {recipient === u.id && <Badge tone="green">Selected</Badge>}
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+
+          <label htmlFor="notif-title" className="block text-[12px] font-semibold text-slate-300 mb-1.5">
+            Title
+          </label>
+          <input
+            id="notif-title"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="e.g. Server maintenance tonight"
+            className="w-full h-10 px-3.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-[13px] text-slate-200 placeholder:text-slate-500 outline-none focus:border-blue-500/50 transition-all"
+          />
+          <label htmlFor="notif-body" className="block text-[12px] font-semibold text-slate-300 mb-1.5 mt-3.5">
+            Message
+          </label>
+          <textarea
+            id="notif-body"
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            rows={4}
+            placeholder="Write the notification message…"
+            className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-[13px] text-slate-200 placeholder:text-slate-500 outline-none focus:border-blue-500/50 transition-all resize-none"
+          />
+          <label htmlFor="notif-link" className="block text-[12px] font-semibold text-slate-300 mb-1.5 mt-3.5">
+            Link (optional)
+          </label>
+          <input
+            id="notif-link"
+            value={link}
+            onChange={(e) => setLink(e.target.value)}
+            placeholder="e.g. /dashboard/websites"
+            className="w-full h-10 px-3.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-[13px] text-slate-200 placeholder:text-slate-500 outline-none focus:border-blue-500/50 transition-all"
+          />
+          <button
+            type="submit"
+            disabled={sending}
+            className="mt-3.5 inline-flex items-center justify-center gap-2 w-full h-10 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-60 text-[13px] font-semibold text-white transition-colors"
+          >
+            <Send className="w-4 h-4" aria-hidden="true" />
+            {sending ? 'Sending…' : mode === 'all' ? 'Notify All Users' : 'Send Personal Notification'}
+          </button>
+          {sent && (
+            <p className="mt-2 text-[12px] text-emerald-400 text-center" role="status">
+              {mode === 'all' ? 'Notification sent to all users.' : 'Notification sent to the user.'}
+            </p>
+          )}
+          {error && (
+            <p className="mt-2 text-[12px] text-red-400 text-center" role="alert">
+              {error}
+            </p>
+          )}
+        </form>
+
+        <div className={`${PANEL} p-4 lg:col-span-3 h-fit`}>
+          <div className="flex items-center gap-2 mb-3">
+            <Bell className="w-4 h-4 text-blue-400" aria-hidden="true" />
+            <p className="text-[14px] font-semibold text-white">How it works</p>
+          </div>
+          <ul className="space-y-2.5 text-[12.5px] text-slate-400 leading-relaxed">
+            <li className="flex gap-2.5">
+              <Users className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" aria-hidden="true" />
+              <span>
+                <strong className="text-slate-200">All Users</strong> — every registered user sees the notification in
+                their dashboard bell within a minute.
+              </span>
+            </li>
+            <li className="flex gap-2.5">
+              <UserIcon className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" aria-hidden="true" />
+              <span>
+                <strong className="text-slate-200">Personal</strong> — only the selected user receives it; useful for
+                account-specific messages.
+              </span>
+            </li>
+            <li className="flex gap-2.5">
+              <Megaphone className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" aria-hidden="true" />
+              <span>
+                Publishing an <strong className="text-slate-200">Announcement</strong> also automatically notifies all
+                users — no need to send a separate notification.
+              </span>
+            </li>
+          </ul>
         </div>
       </div>
     </div>

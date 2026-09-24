@@ -23,6 +23,7 @@ import {
   AdminReviewsPage,
   AdminQrCodesPage,
   AdminAnnouncementsPage,
+  AdminNotificationsPage,
 } from './pages/admin/AdminEngagePages';
 import { AdminAnalyticsPage, AdminSettingsPage } from './pages/admin/AdminSystemPages';
 import { AdminManageAdminsPage } from './pages/admin/AdminManageAdminsPage';
@@ -46,6 +47,7 @@ import { PageDetailPage } from './pages/dashboard/PageDetailPage';
 import { EditorPage } from './pages/dashboard/EditorPage';
 import { ProductsPage } from './pages/dashboard/ProductsPage';
 import { OrdersPage } from './pages/dashboard/OrdersPage';
+import { NotificationsPage } from './pages/dashboard/NotificationsPage';
 import { QueuePage } from './pages/dashboard/QueuePage';
 import { CustomersPage } from './pages/dashboard/CustomersPage';
 import { AnalyticsPage } from './pages/dashboard/AnalyticsPage';
@@ -169,6 +171,7 @@ export default function App() {
           <Route path="reviews" element={<Guard section="reviews"><AdminReviewsPage /></Guard>} />
           <Route path="qr-codes" element={<Guard section="qr-codes"><AdminQrCodesPage /></Guard>} />
           <Route path="announcements" element={<Guard section="announcements"><AdminAnnouncementsPage /></Guard>} />
+          <Route path="notifications" element={<Guard section="announcements"><AdminNotificationsPage /></Guard>} />
           <Route path="guides" element={<Guard section="announcements"><AdminGuidesPage /></Guard>} />
           <Route path="analytics" element={<Guard section="analytics"><AdminAnalyticsPage /></Guard>} />
           <Route path="settings" element={<Guard section="settings"><AdminSettingsPage /></Guard>} />
@@ -194,6 +197,7 @@ export default function App() {
           <Route path="templates" element={<TemplatesPage />} />
           <Route path="products" element={<ProductsPage />} />
           <Route path="orders" element={<OrdersPage />} />
+          <Route path="notifications" element={<NotificationsPage />} />
         <Route path="queue" element={<QueuePage />} />
           <Route path="customers" element={<CustomersPage />} />
           <Route path="analytics" element={<AnalyticsPage />} />

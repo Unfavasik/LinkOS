@@ -39,6 +39,7 @@ import { ShareModal } from '../profile/ShareModal';
 import { useIsAdmin, isKnownAdminEmail } from '../../lib/adminAuth';
 import { fetchMyWebsites, type WebsiteRecord } from '../../lib/websites';
 import { loadPublishedAnnouncements, type Announcement } from '../../lib/announcements';
+import { useUserNotifications } from '../../lib/userNotifications';
 
 export const DashboardLayout: React.FC = () => {
   const location = useLocation();
@@ -48,6 +49,7 @@ export const DashboardLayout: React.FC = () => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [copied, setCopied] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
+  const { unread: notifUnread } = useUserNotifications();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [confirmLogout, setConfirmLogout] = useState(false);
   const isVerifiedAdmin = useIsAdmin();
@@ -241,10 +243,15 @@ export const DashboardLayout: React.FC = () => {
             <button
               type="button"
               aria-label="Notifications"
+              onClick={() => navigate('/dashboard/notifications')}
               className="relative p-2.5 rounded-full hover:bg-white/10 text-slate-300 transition-colors"
             >
               <Bell className="w-5 h-5" />
-              <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-red-500" />
+              {notifUnread > 0 && (
+                <span className="absolute top-1.5 right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-[9px] font-bold text-white flex items-center justify-center">
+                  {notifUnread > 9 ? '9+' : notifUnread}
+                </span>
+              )}
             </button>
 
             <button
