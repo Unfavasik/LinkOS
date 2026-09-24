@@ -127,6 +127,15 @@ export const OverviewPage: React.FC = () => {
         ))}
       </section>
 
+      {/* Create Website — primary action */}
+      <Link
+        to="/dashboard/websites/new"
+        className="flex items-center justify-center gap-2 w-full py-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold shadow-lg shadow-blue-600/25 transition-colors"
+      >
+        <Plus className="w-5 h-5" />
+        Create Website
+      </Link>
+
       {/* My Websites — multi-website section */}
       <MyWebsitesSection />
 
