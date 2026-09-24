@@ -3,6 +3,7 @@ import { DEMO_PROFILE, DEMO_PRODUCTS, DEMO_LINKS, DEMO_ANALYTICS_EVENTS, DEMO_CU
 import { supabase, isSupabaseConfigured, supabaseUrl, supabaseAnonKey } from './supabase';
 import { ensureWebp } from './imageConvert';
 import { toUserProfilesRow, applyUserProfilesRow, type UserProfileRow } from './userProfiles';
+import { clearAdminCache } from './adminCache';
 
 const STORAGE_KEYS = {
   PROFILES: 'linkos_profiles_v1',
@@ -94,11 +95,18 @@ export const StorageService = {
   },
 
   setActiveUser(user: ActiveUser | null) {
+    const previous = this.getActiveUser();
+    const identityChanged =
+      (previous?.id ?? null) !== (user?.id ?? null) ||
+      (previous?.email?.toLowerCase() ?? null) !== (user?.email?.toLowerCase() ?? null);
     if (!user) {
       localStorage.removeItem(STORAGE_KEYS.ACTIVE_USER);
     } else {
       localStorage.setItem(STORAGE_KEYS.ACTIVE_USER, JSON.stringify(user));
     }
+    // A different account must never inherit the previous account's cached
+    // admin verification.
+    if (identityChanged) clearAdminCache();
   },
 
   setUserPlan(plan: string) {
@@ -400,6 +408,50 @@ export const StorageService = {
       if (error) console.warn('[v0] user_profiles upsert failed:', error.message);
     } catch (err) {
       console.warn('[v0] user_profiles sync error:', err);
+    }
+  },
+
+  /**
+   * Persist account details collected at sign-up into Supabase. Best-effort:
+   * failures never block the flow (the same data also lives in auth user
+   * metadata). Creates the public.user_profiles row only when missing, so a
+   * later re-login never overwrites profile edits the user already made.
+   */
+  async syncSignupDetails(details: {
+    userId: string;
+    email: string;
+    displayName?: string;
+  }): Promise<void> {
+    if (!isSupabaseConfigured || !supabase) return;
+    try {
+      const existing = await supabase
+        .from('user_profiles')
+        .select('user_id, display_name')
+        .eq('user_id', details.userId)
+        .maybeSingle();
+      if (existing.error) {
+        console.warn('[v0] user_profiles signup lookup failed:', existing.error.message);
+        return;
+      }
+      if (existing.data) {
+        if (!existing.data.display_name && details.displayName) {
+          const { error } = await supabase
+            .from('user_profiles')
+            .update({ display_name: details.displayName })
+            .eq('user_id', details.userId);
+          if (error) console.warn('[v0] user_profiles display_name update failed:', error.message);
+        }
+        return;
+      }
+      const { error } = await supabase.from('user_profiles').insert({
+        user_id: details.userId,
+        email: details.email,
+        display_name: details.displayName || null,
+        role: 'user',
+      });
+      if (error) console.warn('[v0] user_profiles signup insert failed:', error.message);
+    } catch (err) {
+      console.warn('[v0] user_profiles signup sync error:', err);
     }
   },
 

@@ -113,6 +113,14 @@ export const LoginPage: React.FC = () => {
             id: data.user.id,
             email: data.user.email || cleanEmail,
           });
+          // Ensure the account details captured at sign-up exist in
+          // public.user_profiles (no-op when the row already exists).
+          void StorageService.syncSignupDetails({
+            userId: data.user.id,
+            email: data.user.email || cleanEmail,
+            displayName:
+              (data.user.user_metadata as { full_name?: string } | null)?.full_name || undefined,
+          });
 
           // Supabase decides admin status: `admins` table lookup plus pending
           // invite redemption. Admins land on the panel, everyone else on the

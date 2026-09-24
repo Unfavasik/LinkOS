@@ -140,6 +140,11 @@ export const SignupPage: React.FC = () => {
             email: signIn.user.email || email,
             business_name: fullName || 'My Business',
           });
+          void StorageService.syncSignupDetails({
+            userId: signIn.user.id,
+            email: signIn.user.email || email,
+            displayName: fullName || undefined,
+          });
           // Admins never land on the user dashboard.
           navigate(await resolvePostAuthRoute(signIn.user.email || email, signIn.user.id));
           return;
@@ -159,7 +164,15 @@ export const SignupPage: React.FC = () => {
         const { data, error: authError } = await supabase.auth.signUp({
           email,
           password,
-          options: { data: { full_name: fullName, username } },
+          options: {
+            data: {
+              full_name: fullName,
+              username,
+              persona,
+              interests,
+              heard_from: heardAbout || undefined,
+            },
+          },
         });
 
         if (authError) {
@@ -185,6 +198,11 @@ export const SignupPage: React.FC = () => {
               email: retry.user.email || email,
               business_name: fullName || 'My Business',
             });
+            void StorageService.syncSignupDetails({
+              userId: retry.user.id,
+              email: retry.user.email || email,
+              displayName: fullName || undefined,
+            });
             navigate(await resolvePostAuthRoute(retry.user.email || email, retry.user.id));
             return;
           }
@@ -200,6 +218,11 @@ export const SignupPage: React.FC = () => {
           id: data.user.id,
           email: data.user.email || email,
           business_name: fullName || 'My Business',
+        });
+        void StorageService.syncSignupDetails({
+          userId: data.user.id,
+          email: data.user.email || email,
+          displayName: fullName || undefined,
         });
         // An invited admin signing up for the first time goes straight to the
         // admin panel; everyone else continues onboarding.
