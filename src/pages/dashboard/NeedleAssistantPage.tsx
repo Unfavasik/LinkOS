@@ -1,7 +1,8 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   AlertCircle,
   CheckCircle2,
+  History,
   Image as ImageIcon,
   Link2,
   Loader2,
@@ -12,6 +13,8 @@ import {
   WandSparkles,
 } from 'lucide-react';
 import { runNeedle, runNeedleWithImage, NeedleRunResult } from '../../lib/needleApi';
+import { fetchNeedleHistory, saveNeedleTurn, type NeedleChatTurn } from '../../lib/needleChat';
+import { StorageService } from '../../lib/storage';
 
 const QUICK_ACTIONS = [
   { label: 'Change my template', prompt: 'Show me the best available cafe template and apply it to my page.', icon: Palette },
@@ -32,6 +35,19 @@ export const NeedleAssistantPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [response, setResponse] = useState<NeedleRunResult | null>(null);
+  const [history, setHistory] = useState<NeedleChatTurn[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const user = StorageService.getActiveUser();
+    if (!user) return;
+    fetchNeedleHistory(user.id, 12).then((turns) => {
+      if (!cancelled) setHistory(turns);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const calls = useMemo(() => response?.result?.function_calls || [], [response]);
   const results = useMemo(() => response?.result?.results || [], [response]);
@@ -88,6 +104,13 @@ export const NeedleAssistantPage: React.FC = () => {
       setPrompt('');
       setSelectedImage(null);
       setSelectedImagePreview('');
+      // Record the conversation so it survives reloads (Supabase, local mirror for demo sessions).
+      const user = StorageService.getActiveUser();
+      if (user) {
+        await saveNeedleTurn(user.id, 'user', cleanPrompt, null);
+        await saveNeedleTurn(user.id, 'assistant', null, result.result as Record<string, unknown>);
+        fetchNeedleHistory(user.id, 12).then(setHistory);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Needle could not complete that request.');
     } finally {
@@ -168,6 +191,23 @@ export const NeedleAssistantPage: React.FC = () => {
       </section>
 
       {error && <div className="flex items-start gap-3 rounded-2xl border border-red-400/20 bg-red-500/10 p-4 text-sm text-red-200"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" /><span>{error}</span></div>}
+
+      {history.length > 0 && (
+        <section>
+          <div className="mb-3 flex items-center gap-2 text-sm font-bold text-white"><History className="h-4 w-4 text-blue-400" /> Recent activity</div>
+          <div className="space-y-2">
+            {history.slice(-6).reverse().map((turn) => (
+              <div key={turn.id} className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
+                {turn.role === 'user' ? (
+                  <p className="text-[13px] text-slate-200"><span className="mr-2 text-[10px] font-bold uppercase tracking-wider text-blue-300">You</span>{turn.prompt}</p>
+                ) : (
+                  <p className="text-[13px] text-slate-400"><span className="mr-2 text-[10px] font-bold uppercase tracking-wider text-emerald-300">Needle</span>{String(turn.response?.reasoning || 'Task completed.')}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {response && (
         <section className="rounded-2xl border border-emerald-400/20 bg-emerald-500/[0.07] p-5">
