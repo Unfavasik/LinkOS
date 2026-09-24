@@ -198,7 +198,10 @@ async function uniqueSlug(base: string): Promise<string> {
 export async function fetchMyWebsites(): Promise<WebsiteRecord[]> {
   const uid = await currentUserId();
   if (!uid) return [];
-  if (!isSupabaseConfigured || !supabase) return [];
+  if (!isSupabaseConfigured || !supabase) {
+    // No Supabase in this environment — the local store is the only source.
+    return readLocalWebsites().filter((r) => r.owner_id === uid);
+  }
   const { data, error } = await supabase
     .from('websites')
     .select('*')
@@ -228,14 +231,22 @@ export async function fetchWebsite(id: string): Promise<WebsiteRecord | null> {
 }
 
 export async function fetchLiveWebsiteBySlug(slug: string): Promise<WebsiteRecord | null> {
-  if (!isSupabaseConfigured || !supabase) return null;
+  if (!isSupabaseConfigured || !supabase) {
+    // No Supabase in this environment — serve locally-published sites so the
+    // public /site/:slug page still works for demo sessions.
+    return readLocalWebsites().find((r) => r.slug === slug && r.status === 'live') ?? null;
+  }
   const { data, error } = await supabase
     .from('websites')
     .select('*')
     .eq('slug', slug)
     .eq('status', 'live')
     .maybeSingle();
-  if (error || !data) return null;
+  if (error || !data) {
+    const local = readLocalWebsites().find((r) => r.slug === slug && r.status === 'live');
+    if (local) return local;
+    return null;
+  }
   return toRecord(data);
 }
 
