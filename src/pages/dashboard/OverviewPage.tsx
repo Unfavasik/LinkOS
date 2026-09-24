@@ -138,13 +138,13 @@ export const OverviewPage: React.FC = () => {
         ))}
       </section>
 
-      {/* Create New Page */}
+      {/* Create Website — opens the website setup page (name + template picker) */}
       <Link
-        to="/dashboard/templates"
+        to="/dashboard/websites/new"
         className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold shadow-lg shadow-blue-600/25 transition-colors"
       >
         <Plus className="w-4.5 h-4.5" />
-        Create New Page
+        Create Website
       </Link>
 
       {/* My Websites — multi-website section */}
