@@ -111,6 +111,7 @@ export const DashboardLayout: React.FC = () => {
 
   const navItems = [
     { label: 'Overview', path: '/dashboard', icon: LayoutDashboard, exact: true },
+    { label: 'My Websites', path: '/dashboard/websites', icon: Globe },
     latestSite
       ? { label: 'My Website', path: `/dashboard/websites/${latestSite.id}/edit`, icon: Globe }
       : { label: 'My Website', path: '/dashboard/websites/new', icon: Globe },
