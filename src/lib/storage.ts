@@ -455,6 +455,30 @@ export const StorageService = {
     }
   },
 
+  /**
+   * Persist the onboarding preferences (step 2 of sign-up) onto the auth
+   * user's metadata. Runs after the account exists, so the session can update
+   * its own metadata. Best-effort: failures never block the flow.
+   */
+  async saveSignupPreferences(prefs: {
+    persona?: string;
+    interests?: string[];
+    heardFrom?: string;
+  }): Promise<void> {
+    if (!isSupabaseConfigured || !supabase) return;
+    const data: Record<string, unknown> = {};
+    if (prefs.persona) data.persona = prefs.persona;
+    if (prefs.interests?.length) data.interests = prefs.interests;
+    if (prefs.heardFrom) data.heard_from = prefs.heardFrom;
+    if (!Object.keys(data).length) return;
+    try {
+      const { error } = await supabase.auth.updateUser({ data });
+      if (error) console.warn('[v0] signup preferences save failed:', error.message);
+    } catch (err) {
+      console.warn('[v0] signup preferences save error:', err);
+    }
+  },
+
   // Best-effort read from public.user_profiles, merged over the base profile.
   async getUserUserProfile(userId: string): Promise<UserProfileRow | null> {
     if (!isSupabaseConfigured || !supabase) return null;

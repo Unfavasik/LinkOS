@@ -168,9 +168,6 @@ export const SignupPage: React.FC = () => {
             data: {
               full_name: fullName,
               username,
-              persona,
-              interests,
-              heard_from: heardAbout || undefined,
             },
           },
         });
@@ -512,7 +509,19 @@ export const SignupPage: React.FC = () => {
               <ArrowLeft className="h-4 w-4" aria-hidden="true" />
               Back
             </button>
-            <PrimaryButton type="button" onClick={() => setStep(3)} disabled={!persona} className="!w-auto px-8">
+            <PrimaryButton
+              type="button"
+              onClick={() => {
+                void StorageService.saveSignupPreferences({
+                  persona: persona || undefined,
+                  interests,
+                  heardFrom: heardAbout || undefined,
+                });
+                setStep(3);
+              }}
+              disabled={!persona}
+              className="!w-auto px-8"
+            >
               <span>Continue</span>
               <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </PrimaryButton>
