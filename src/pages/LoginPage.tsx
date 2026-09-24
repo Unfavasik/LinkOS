@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowRight, Lock, Mail, Eye, EyeOff, Coffee, Scissors, ShoppingBag, Car, Dumbbell, Store, HeartPulse } from 'lucide-react';
+import { ArrowRight, Lock, Mail, Eye, EyeOff, Coffee, Scissors, ShoppingBag, Car, Dumbbell, Store, HeartPulse, AlertCircle, MailCheck } from 'lucide-react';
 import { AuthShell, SocialButtons } from '../components/auth/AuthShell';
 import { StorageService } from '../lib/storage';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
@@ -16,6 +16,41 @@ const FLOAT_TILES = [
   { Icon: HeartPulse, cls: 'right-8 bottom-0 -rotate-6', color: 'text-blue-300' },
 ];
 
+/**
+ * Maps raw Supabase auth errors to clear, friendly messages. For "invalid
+ * credentials" it checks whether the email has a profile, so users see
+ * "wrong password" vs "no account" instead of a cryptic error.
+ */
+async function friendlyLoginError(err: any, email: string): Promise<string> {
+  const msg = String(err?.message || '');
+  if (/invalid login credentials/i.test(msg)) {
+    try {
+      // An account can live in profiles, user_profiles, or admins — check all.
+      const checks = await Promise.all(
+        ['profiles', 'user_profiles', 'admins'].map((table) =>
+          supabase!.from(table).select('id').eq('email', email).maybeSingle()
+        )
+      );
+      if (checks.some(({ data }) => data)) {
+        return 'The password you entered is incorrect. Please try again, or tap "Forgot Password?" to reset it.';
+      }
+      return 'No account found with this email. Please create an account first.';
+    } catch {
+      return 'Wrong email or password. Please try again.';
+    }
+  }
+  if (/email not confirmed/i.test(msg)) {
+    return 'Your email is not confirmed yet. Please check your inbox for the confirmation link.';
+  }
+  if (/rate limit|too many/i.test(msg)) {
+    return 'Too many attempts. Please wait a minute and try again.';
+  }
+  if (/network|fetch/i.test(msg)) {
+    return 'Network problem. Please check your internet connection and try again.';
+  }
+  return 'Failed to sign in. Please check your email and password.';
+}
+
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
@@ -23,12 +58,14 @@ export const LoginPage: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [stage, setStage] = useState<'signing' | 'verifying'>('signing');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setInfo(null);
     setLoading(true);
     setStage('signing');
 
@@ -75,9 +112,31 @@ export const LoginPage: React.FC = () => {
       const admin = await verifyAdmin(cleanEmail);
       navigate(admin ? '/admin' : '/dashboard');
     } catch (err: any) {
-      setError(err.message || 'Failed to sign in. Please check credentials.');
+      setError(await friendlyLoginError(err, cleanEmail));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    const cleanEmail = email.toLowerCase().trim();
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      setError('Enter your email above first, then tap "Forgot Password?".');
+      return;
+    }
+    setError(null);
+    setInfo(null);
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.auth.resetPasswordForEmail(cleanEmail, {
+          redirectTo: `${window.location.origin}/login`,
+        });
+      } catch {
+        // Supabase hides whether the email exists — same message either way.
+      }
+      setInfo(`If an account exists for ${cleanEmail}, a password reset link is on its way. Check your inbox.`);
+    } else {
+      setInfo('Password reset works once you are online.');
     }
   };
 
@@ -133,9 +192,15 @@ export const LoginPage: React.FC = () => {
       {/* Form card */}
       <div className="mt-5 rounded-2xl bg-[#0B1626] border border-white/10 p-5">
         {error && (
-          <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-300 text-xs flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
+          <div role="alert" className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-300 text-xs flex items-start gap-2">
+            <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
             <span>{error}</span>
+          </div>
+        )}
+        {info && (
+          <div role="status" className="mb-4 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-start gap-2">
+            <MailCheck className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+            <span>{info}</span>
           </div>
         )}
 
@@ -159,7 +224,7 @@ export const LoginPage: React.FC = () => {
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label htmlFor="login-password" className="block text-[13px] font-semibold">Password</label>
-              <button type="button" className="text-[11px] font-semibold text-[#3B82F6] hover:text-blue-400 transition-colors">
+              <button type="button" onClick={handleForgotPassword} className="text-[11px] font-semibold text-[#3B82F6] hover:text-blue-400 transition-colors">
                 Forgot Password?
               </button>
             </div>

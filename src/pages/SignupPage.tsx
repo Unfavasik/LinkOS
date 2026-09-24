@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowRight, Lock, Mail, Eye, EyeOff, User, ShieldCheck, Users, Zap } from 'lucide-react';
+import { ArrowRight, Lock, Mail, Eye, EyeOff, User, ShieldCheck, Users, Zap, AlertCircle } from 'lucide-react';
 import { AuthShell, SocialButtons } from '../components/auth/AuthShell';
 import { StorageService } from '../lib/storage';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
@@ -55,9 +55,12 @@ export const SignupPage: React.FC = () => {
         }
 
         // Wrong password for an existing account — do not create a duplicate.
+        if (signInError && /email not confirmed/i.test(signInError.message)) {
+          throw new Error('This email is registered but not confirmed yet. Please check your inbox for the confirmation link.');
+        }
         if (
           signInError &&
-          !/invalid login credentials|email not confirmed/i.test(signInError.message)
+          !/invalid login credentials/i.test(signInError.message)
         ) {
           throw signInError;
         }
@@ -70,7 +73,7 @@ export const SignupPage: React.FC = () => {
         if (authError) {
           if (/already registered|already exists|already been/i.test(authError.message)) {
             throw new Error(
-              'This email already has an account. The password you entered does not match — please log in instead.'
+              'This email is already registered. The password you entered does not match — please log in instead.'
             );
           }
           throw authError;
@@ -95,7 +98,7 @@ export const SignupPage: React.FC = () => {
           }
           if (retryError && !/email not confirmed/i.test(retryError.message)) {
             throw new Error(
-              'This email already has an account with a different password. Please log in instead.'
+              'This email is already registered with a different password. Please log in instead.'
             );
           }
           // New account awaiting confirmation — continue locally for now.
@@ -179,9 +182,19 @@ export const SignupPage: React.FC = () => {
       {/* Form card */}
       <div className="mt-5 rounded-2xl bg-[#0B1626] border border-white/10 p-5">
         {error && (
-          <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-300 text-xs flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
-            <span>{error}</span>
+          <div role="alert" className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-300 text-xs flex items-start gap-2">
+            <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+            <span>
+              {error}
+              {/already registered/i.test(error) && (
+                <>
+                  {' '}
+                  <Link to="/login" className="font-semibold underline underline-offset-2 text-red-200 hover:text-white">
+                    Log In
+                  </Link>
+                </>
+              )}
+            </span>
           </div>
         )}
 
