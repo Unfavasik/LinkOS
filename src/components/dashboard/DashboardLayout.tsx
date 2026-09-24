@@ -3,7 +3,6 @@ import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   Globe,
-  Smartphone,
   Package,
   ShoppingBag,
   Users,
@@ -11,6 +10,7 @@ import {
   QrCode as QrIcon,
   Ticket,
   LayoutTemplate,
+  Bookmark,
   Settings,
   ExternalLink,
   Share2,
@@ -54,8 +54,8 @@ export const DashboardLayout: React.FC = () => {
   const [confirmLogout, setConfirmLogout] = useState(false);
   const isVerifiedAdmin = useIsAdmin();
 
-  // The "My Page" slot becomes the user's website once they create one —
-  // the tab opens the website editor instead of the profile editor.
+  // The "My Website" tab opens the latest website's editor, or the website
+  // setup wizard when the user has not created one yet.
   const { data: websites } = useSWR('dashboard-my-websites', fetchMyWebsites, {
     revalidateOnFocus: false,
   });
@@ -114,8 +114,9 @@ export const DashboardLayout: React.FC = () => {
     { label: 'My Websites', path: '/dashboard/websites', icon: Globe },
     latestSite
       ? { label: 'My Website', path: `/dashboard/websites/${latestSite.id}/edit`, icon: Globe }
-      : { label: 'My Page', path: '/dashboard/editor', icon: Smartphone },
+      : { label: 'My Website', path: '/dashboard/websites/new', icon: Globe },
     { label: 'Templates', path: '/dashboard/templates', icon: LayoutTemplate },
+    { label: 'Saved Templates', path: '/dashboard/templates?view=saved', query: 'view=saved', icon: Bookmark },
     { label: 'Products', path: '/dashboard/products', icon: Package },
     { label: 'Orders', path: '/dashboard/orders', icon: ShoppingBag },
     { label: 'Live Queue', path: '/dashboard/queue', icon: Ticket },
@@ -128,11 +129,18 @@ export const DashboardLayout: React.FC = () => {
     { label: 'Settings', path: '/dashboard/settings', icon: Settings },
   ];
 
-  const isActive = (item: { path: string; exact?: boolean }) => {
+  const isActive = (item: { path: string; exact?: boolean; query?: string }) => {
+    const itemPath = item.path.split('?')[0];
     if (item.exact) {
-      return location.pathname === item.path;
+      return location.pathname === itemPath;
     }
-    return location.pathname.startsWith(item.path);
+    const base = location.pathname.startsWith(itemPath);
+    // Items like "Saved Templates" share a route with a sibling tab — only
+    // highlight when the matching query param is present.
+    if (item.query) {
+      return base && location.search.includes(item.query);
+    }
+    return base;
   };
 
   const ownerInitials = (profile?.business_name || 'L')

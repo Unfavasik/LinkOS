@@ -475,7 +475,7 @@ export const OnboardingWizard: React.FC = () => {
             {/* Quick links */}
             <section className="mt-3 grid grid-cols-3 gap-3">
               {[
-                { icon: LayoutGrid, label: 'My Pages', sub: 'Manage all your business pages', color: 'text-blue-600 bg-blue-50' },
+                { icon: LayoutGrid, label: 'My Websites', sub: 'Manage all your business websites', color: 'text-blue-600 bg-blue-50' },
                 { icon: Bookmark, label: 'Saved Templates', sub: 'View your favourite templates', color: 'text-blue-600 bg-blue-50' },
                 { icon: CreditCard, label: 'Billing & Plans', sub: 'Manage subscription and payments', color: 'text-amber-500 bg-amber-50' },
                 { icon: BarChart3, label: 'Analytics', sub: 'See performance and insights', color: 'text-blue-600 bg-blue-50' },
@@ -1081,7 +1081,7 @@ export const OnboardingWizard: React.FC = () => {
 
             <div className="mt-6 max-w-sm mx-auto space-y-2.5">
               <button onClick={() => navigate(`/${username}`)} className="w-full py-3.5 rounded-xl bg-blue-600 text-sm font-bold text-white inline-flex items-center justify-center gap-2">
-                View My Page <ArrowRight className="w-4 h-4" />
+                View My Website <ArrowRight className="w-4 h-4" />
               </button>
               <button onClick={() => setShowShareModal(true)} className="w-full py-3.5 rounded-xl border border-zinc-200 bg-white text-sm font-bold text-zinc-800 inline-flex items-center justify-center gap-2">
                 <Share2 className="w-4 h-4 text-blue-600" /> Share Page
