@@ -174,6 +174,11 @@ async function executeAction(
   }
 }
 
+/** Strips filler words like "called"/"named" that leak into captured names. */
+function stripNameFillers(raw: string): string {
+  return raw.replace(/^(?:called|named|titled)\s+/i, '').trim();
+}
+
 /**
  * Client-side keyword executor when the AI planner is unreachable. Keeps all
  * Quick Actions and commands functional offline.
@@ -200,18 +205,21 @@ function keywordActions(prompt: string): NeedleAction[] {
     actions.push({
       name: 'create_product',
       arguments: {
-        name: nameMatch ? nameMatch[1].trim() : 'Special Offer',
+        name: nameMatch ? stripNameFillers(nameMatch[1]) : 'Special Offer',
         price: priceMatch ? parseFloat(priceMatch[1]) : 99,
       },
     });
   }
   if (text.includes('link') || text.includes('url') || text.includes('instagram') || text.includes('website')) {
     const urlMatch = prompt.match(/https?:\/\/[^\s"']+/i);
-    const titleMatch = prompt.match(/titled\s+([^,.\n]+?)(?:\s+with|\s+to|\.|$)/i) || prompt.match(/link\s+([^,.\n]+?)(?:\s+with|\s+to|\.|$)/i);
+    const titleMatch =
+      prompt.match(/titled\s+([^,.\n]+?)(?:\s+with|\s+to|\.|$)/i) ||
+      prompt.match(/called\s+([^,.\n]+?)(?:\s+with|\s+to|\.|$)/i) ||
+      prompt.match(/link\s+([^,.\n]+?)(?:\s+with|\s+to|\.|$)/i);
     actions.push({
       name: 'add_link',
       arguments: {
-        title: titleMatch ? titleMatch[1].trim() : text.includes('instagram') ? 'Instagram' : 'Website',
+        title: titleMatch ? stripNameFillers(titleMatch[1]) : text.includes('instagram') ? 'Instagram' : 'Website',
         url: urlMatch ? urlMatch[0] : 'https://instagram.com/mybusiness',
       },
     });
