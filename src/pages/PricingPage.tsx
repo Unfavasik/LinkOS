@@ -7,7 +7,7 @@ import {
   Star, Facebook, Twitter, Instagram, Youtube, Linkedin, Headphones, IndianRupee,
 } from 'lucide-react';
 import { LinkOsLogo } from '../components/common/LinkOsLogo';
-import { MenuDrawer } from '../components/common/MenuDrawer';
+import { FullscreenMenu } from '../components/common/FullscreenMenu';
 import { AuthNavButtons } from '../components/common/AuthNavButtons';
 import { PhoneMockup } from './AboutPage';
 import { StorageService } from '../lib/storage';
@@ -112,7 +112,7 @@ export default function PricingPage() {
 
   return (
   <div className="min-h-screen bg-[#060D1A] text-white font-sans">
-  <MenuDrawer open={menuOpen} onClose={() => setMenuOpen(false)} />
+  <FullscreenMenu open={menuOpen} onClose={() => setMenuOpen(false)} />
   <PublicNavbar />
 
   {/* ── Hero ── */}
