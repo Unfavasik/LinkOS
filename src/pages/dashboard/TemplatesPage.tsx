@@ -1,12 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useOutletContext, Link, useSearchParams } from 'react-router-dom';
+import { useOutletContext, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Search,
   LayoutTemplate,
   X,
   Check,
   Crown,
-  ExternalLink,
   Sparkles,
   Type,
   Shapes,
@@ -25,16 +24,13 @@ import { THEME_PALETTES, FONT_STACKS } from '../../lib/theme';
 import { fetchSavedTemplates, toggleSavedTemplate, type SavedTemplate } from '../../lib/savedTemplates';
 
 export const TemplatesPage: React.FC = () => {
-  const { profile, setProfile } = useOutletContext<{
-    profile: Profile | null;
-    setProfile: (p: Profile) => void;
-  }>();
+  const { profile } = useOutletContext<{ profile: Profile | null }>();
+  const navigate = useNavigate();
 
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState<'All' | TemplateCategory>('All');
   const [selected, setSelected] = useState<PageTemplate | null>(null);
   const [wizardTemplate, setWizardTemplate] = useState<PageTemplate | null>(null);
-  const [publishedName, setPublishedName] = useState<string | null>(null);
   const [savedRows, setSavedRows] = useState<SavedTemplate[]>([]);
   const [searchParams, setSearchParams] = useSearchParams();
   const view = searchParams.get('view') === 'saved' ? 'saved' : 'all';
@@ -87,13 +83,6 @@ export const TemplatesPage: React.FC = () => {
   const businessName = profile?.business_name || 'Your Business';
   const pageCategory = profile?.category || 'Business';
 
-  const handlePublished = (updated: Profile) => {
-    setProfile(updated);
-    setPublishedName(updated.business_name);
-    setWizardTemplate(null);
-    setTimeout(() => setPublishedName(null), 10000);
-  };
-
   return (
     <div className="max-w-5xl">
       {/* Page heading */}
@@ -104,7 +93,7 @@ export const TemplatesPage: React.FC = () => {
             Templates
           </h1>
           <p className="text-xs text-zinc-500 mt-1">
-            {TEMPLATES.length} ready-made designs. Preview, modify and publish to your live page in one click.
+            {TEMPLATES.length} ready-made designs. Pick one, fill in your details and launch a new website in one click.
           </p>
         </div>
         <div className="inline-flex rounded-lg border border-zinc-200 bg-white p-0.5 self-start">
@@ -135,28 +124,6 @@ export const TemplatesPage: React.FC = () => {
           </div>
         )}
       </div>
-
-      {/* Published success banner */}
-      {publishedName && (
-        <div className="mb-5 p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-start gap-2.5">
-            <Rocket className="w-4 h-4 text-emerald-600 mt-0.5 shrink-0" />
-            <div>
-              <p className="text-xs font-bold text-emerald-900">Published — "{publishedName}" is now live.</p>
-              <p className="text-[11px] text-emerald-700 mt-0.5">
-                Your page theme, colors, fonts and buttons were updated instantly.
-              </p>
-            </div>
-          </div>
-          <Link
-            to={`/dashboard/editor`}
-            className="shrink-0 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-semibold transition-colors"
-          >
-            <ExternalLink className="w-3.5 h-3.5" />
-            View Page
-          </Link>
-        </div>
-      )}
 
       {/* Search + category filter */}
       <div className="mb-5 space-y-3">
@@ -286,7 +253,7 @@ export const TemplatesPage: React.FC = () => {
                       onClick={() => setSelected(template)}
                       className="inline-flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-white text-[11px] font-semibold transition-colors"
                     >
-                      {isCurrent ? 'View & Edit' : 'Preview & Apply'}
+                      Create Website
                     </button>
                   </div>
                 </div>
@@ -296,13 +263,19 @@ export const TemplatesPage: React.FC = () => {
         </div>
       )}
 
-      {/* Apply wizard */}
+      {/* Apply wizard — always creates a NEW user-owned website; the user's
+          My Page profile is never overwritten from the templates library. */}
       {wizardTemplate && (
         <TemplateApplyWizard
           template={wizardTemplate}
           existingProfile={profile}
+          websiteMode
           onClose={() => setWizardTemplate(null)}
-          onPublished={handlePublished}
+          onWebsitePublished={(site) => {
+            setWizardTemplate(null);
+            navigate(`/dashboard/websites/${site.id}`);
+          }}
+          onPublished={() => setWizardTemplate(null)}
         />
       )}
 
@@ -438,7 +411,7 @@ export const TemplatesPage: React.FC = () => {
                     className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-bold transition-colors"
                   >
                     <Rocket className="w-4 h-4" />
-                    {profile?.template_id === selected.id ? 'Edit & Republish' : 'Apply — Set Up My Website'}
+                    Create Website with This Template
                   </button>
                   <button
                     type="button"
