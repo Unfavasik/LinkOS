@@ -7,10 +7,6 @@ import {
   TrendingUp,
   Plus,
   Crown,
-  MoreVertical,
-  Star,
-  Copy,
-  Check,
   LayoutTemplate,
   BarChart3,
   QrCode,
@@ -28,7 +24,6 @@ import { fetchMyWebsites, summarize } from '../../lib/websites';
 export const OverviewPage: React.FC = () => {
   const { profile } = useOutletContext<{ profile: Profile | null; setProfile: (p: Profile | null) => void }>();
   const [isShareOpen, setIsShareOpen] = useState(false);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
   const [liveStats, setLiveStats] = useState<{ views: string; clicks: string } | null>(null);
 
   const pages = buildPagesFromProfile(profile);
@@ -58,12 +53,6 @@ export const OverviewPage: React.FC = () => {
   const ownerEmail = profile?.email || '';
   const initials = ownerName.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase();
   const isPro = profile?.plan === 'pro' || profile?.plan === 'business';
-
-  const handleCopy = (link: string, id: string) => {
-    navigator.clipboard.writeText(`${window.location.origin}/${link.replace('linkos.in/', '')}`);
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
-  };
 
   const stats = [
     { icon: FileText, value: String(pages.length), label: 'Pages', color: 'text-blue-400' },
@@ -140,65 +129,6 @@ export const OverviewPage: React.FC = () => {
 
       {/* My Websites — multi-website section */}
       <MyWebsitesSection />
-
-      {/* Your Pages */}
-      <section>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-base font-extrabold">Your Pages</h2>
-          <Link to="/dashboard/editor" className="text-xs font-semibold text-blue-400 inline-flex items-center gap-1">
-            View All <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
-        </div>
-
-        <div className="space-y-3">
-          {pages.map((page) => (
-            <div key={page.id} className="rounded-2xl bg-[#0B1424] border border-white/10 p-3.5">
-              <div className="flex items-start gap-3">
-                <Link to={`/dashboard/pages/${page.id}`} className="shrink-0">
-                  <img src={page.cover} alt={`${page.name} cover`} className="w-14 h-14 rounded-xl object-cover border border-white/10" />
-                </Link>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2">
-                    <Link to={`/dashboard/pages/${page.id}`} className="text-sm font-extrabold truncate hover:text-blue-400 transition-colors">
-                      {page.name}
-                    </Link>
-                    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold shrink-0 ${
-                      page.status === 'Active'
-                        ? 'bg-emerald-500/15 text-emerald-400'
-                        : 'bg-slate-500/15 text-slate-400'
-                    }`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${page.status === 'Active' ? 'bg-emerald-400' : 'bg-slate-400'}`} />
-                      {page.status}
-                    </span>
-                    <button type="button" aria-label={`Options for ${page.name}`} className="text-slate-500 hover:text-white shrink-0">
-                      <MoreVertical className="w-4 h-4" />
-                    </button>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleCopy(page.link, page.id)}
-                    className="mt-0.5 text-[11px] text-blue-400 font-medium inline-flex items-center gap-1.5 hover:underline"
-                  >
-                    {page.link}
-                    {copiedId === page.id ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-                  </button>
-                  <div className="mt-2 flex items-center gap-4 text-[10px] text-slate-400">
-                    <span className="inline-flex items-center gap-1"><Eye className="w-3.5 h-3.5" /> {liveStats?.views ?? page.views}<span className="text-slate-600">Views</span></span>
-                    <span className="inline-flex items-center gap-1"><Link2 className="w-3.5 h-3.5" /> {liveStats?.clicks ?? page.clicks}<span className="text-slate-600">Clicks</span></span>
-                    <span className="inline-flex items-center gap-1">
-                      {page.rating ? (
-                        <><Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" /> {page.rating}<span className="text-slate-600">Rating</span></>
-                      ) : (
-                        <><Star className="w-3.5 h-3.5 text-slate-600" /> <span className="text-slate-600">Rating</span></>
-                      )}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
 
       {/* Upgrade banner */}
       {!isPro && (
