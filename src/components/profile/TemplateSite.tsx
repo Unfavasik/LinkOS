@@ -136,9 +136,46 @@ function ProductGrid({ profile, products, onSelectProduct }: Pick<TemplateSitePr
   );
 }
 
-export function SiteFooter() {
+export function OwnerBadge({ profile }: { profile: Profile }) {
+  return (
+    <div className="flex flex-col items-center gap-0.5">
+      <p className="text-[11px] font-semibold" style={{ color: 'var(--lk-text, currentColor)' }}>
+        Owner: {profile.business_name}
+      </p>
+      {profile.email && (
+        <a
+          href={`mailto:${profile.email}`}
+          className="text-[11px] opacity-70 hover:opacity-100 hover:underline transition-opacity"
+        >
+          {profile.email}
+        </a>
+      )}
+      <p className="text-[10px] font-mono opacity-50 break-all max-w-[300px]">ID: {profile.user_id}</p>
+    </div>
+  );
+}
+
+export function SiteFooter({ profile }: { profile?: Profile }) {
   return (
     <footer className="mt-auto pt-8 pb-10 text-center border-t border-[var(--lk-border,#F4F4F5)]">
+      {profile && (
+        <div className="mb-4 flex flex-col items-center gap-1 px-4">
+          <p className="text-[11px] font-semibold text-[var(--lk-text,#18181B)]">
+            Owner: {profile.business_name}
+          </p>
+          {profile.email && (
+            <a
+              href={`mailto:${profile.email}`}
+              className="text-[11px] text-zinc-500 hover:text-zinc-800 hover:underline transition-colors"
+            >
+              {profile.email}
+            </a>
+          )}
+          <p className="text-[10px] font-mono text-zinc-400 break-all max-w-[300px]">
+            ID: {profile.user_id}
+          </p>
+        </div>
+      )}
       <Link
         to="/"
         className="inline-flex items-center gap-2 text-xs text-zinc-500 hover:text-zinc-900 transition-colors group"
@@ -226,7 +263,7 @@ function ClassicLayout({ profile, products, links, reviews, onSelectProduct, onS
         <div className="py-3"><BusinessInfoCard profile={profile} /></div>
         <ShareCard profile={profile} onShare={onShare} />
       </div>
-      <SiteFooter />
+      <SiteFooter profile={profile} />
     </div>
   );
 }
@@ -341,7 +378,7 @@ function BannerLayout({ profile, products, links, reviews, onSelectProduct, onSh
         <div className="py-3"><BusinessInfoCard profile={profile} /></div>
         <ShareCard profile={profile} onShare={onShare} />
       </div>
-      <SiteFooter />
+      <SiteFooter profile={profile} />
     </div>
   );
 }
@@ -428,7 +465,7 @@ function SplitLayout({ profile, products, links, reviews, onSelectProduct, onSha
         <ReviewsSection reviews={reviews} />
         <div className="py-3"><BusinessInfoCard profile={profile} /></div>
       </div>
-      <SiteFooter />
+      <SiteFooter profile={profile} />
     </div>
   );
 }
@@ -527,7 +564,7 @@ function MinimalLayout({ profile, products, links, reviews, onSelectProduct, onS
         <ReviewsSection reviews={reviews} />
         <div className="py-3"><BusinessInfoCard profile={profile} /></div>
       </div>
-      <SiteFooter />
+      <SiteFooter profile={profile} />
     </div>
   );
 }
@@ -589,7 +626,7 @@ function BoldLayout({ profile, products, links, reviews, onSelectProduct, onShar
         <div className="py-3"><BusinessInfoCard profile={profile} /></div>
         <ShareCard profile={profile} onShare={onShare} />
       </div>
-      <SiteFooter />
+      <SiteFooter profile={profile} />
     </div>
   );
 }

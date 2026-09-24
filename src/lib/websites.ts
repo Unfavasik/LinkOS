@@ -106,6 +106,22 @@ async function currentUserId(): Promise<string | null> {
   return data?.user?.id ?? null;
 }
 
+/** The signed-in user's email, used to stamp website ownership. */
+async function currentUserEmail(): Promise<string | null> {
+  const active = StorageService.getActiveUser();
+  if (active?.email) return active.email;
+  if (!isSupabaseConfigured || !supabase) return null;
+  const { data } = await supabase.auth.getUser();
+  return data?.user?.email ?? null;
+}
+
+/** Stamp the website's content snapshot with its owner's id and email so
+ *  ownership is readable straight from the websites table row. */
+async function ownershipStamp(uid: string): Promise<Record<string, unknown>> {
+  const email = await currentUserEmail();
+  return email ? { owner_id: uid, owner_email: email } : { owner_id: uid };
+}
+
 /** Build a Profile-shaped content snapshot for a new website.
  *  Design (theme, layout, fonts) comes from the template; all business
  *  content is prefilled from the user's existing My Page profile so the
@@ -254,9 +270,10 @@ export async function createWebsiteFromContent(
   if (!uid || !tpl) return null;
   const slug = await uniqueSlug(preferredSlug?.trim() || name || tpl.name);
   if (!isSupabaseConfigured || !supabase) return null;
+  const stamp = await ownershipStamp(uid);
   const { data, error } = await supabase
     .from('websites')
-    .insert({ owner_id: uid, template_id: tpl.id, name: name.trim() || tpl.name, slug, status: 'live', content })
+    .insert({ owner_id: uid, template_id: tpl.id, name: name.trim() || tpl.name, slug, status: 'live', content: { ...content, ...stamp } })
     .select('*')
     .maybeSingle();
   if (error || !data) {
@@ -270,7 +287,7 @@ export async function createWebsiteFromContent(
       name: name.trim() || tpl.name,
       slug,
       status: 'live',
-      content,
+      content: { ...content, ...stamp },
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
@@ -292,9 +309,10 @@ export async function createWebsiteFromTemplate(
   // starts with the same business data the My Page editor shows.
   const profile = await StorageService.getCurrentUserProfile();
   const content = templateContentSnapshot(tpl, name || tpl.name, profile);
+  const stamp = await ownershipStamp(uid);
   const { data, error } = await supabase
     .from('websites')
-    .insert({ owner_id: uid, template_id: tpl.id, name: name || tpl.name, slug, status: 'draft', content })
+    .insert({ owner_id: uid, template_id: tpl.id, name: name || tpl.name, slug, status: 'draft', content: { ...content, ...stamp } })
     .select('*')
     .maybeSingle();
   if (error || !data) {

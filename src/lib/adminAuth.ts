@@ -1,17 +1,16 @@
 import { useEffect, useState } from 'react';
 import { supabase, isSupabaseConfigured } from './supabase';
 import { StorageService } from './storage';
+import {
+  clearAdminCache,
+  getCachedAdminRecord,
+  setCachedAdminRecord,
+  type AdminRecord,
+} from './adminCache';
 
-export interface AdminRecord {
-  id: string;
-  email: string;
-  role: string;
-  is_active: boolean;
-  display_name?: string | null;
-  avatar_url?: string | null;
-}
+export type { AdminRecord };
+export { clearAdminCache };
 
-let cachedAdmin: AdminRecord | null | undefined;
 let supabaseAdminEmailsCache: Set<string> = new Set();
 
 // Hydrate from localStorage on boot
@@ -74,7 +73,10 @@ export function isKnownAdminEmail(email?: string | null): boolean {
   const clean = email.toLowerCase().trim();
   if (ROOT_OWNER_EMAILS.includes(clean)) return true;
   if (supabaseAdminEmailsCache.has(clean)) return true;
-  if (clean.includes('ayatulsekh') || clean.startsWith('admin@') || clean.startsWith('owner@') || clean.includes('ayatul')) return true;
+  // Exact matches only. Substring/prefix rules (e.g. includes('ayatulsekh'),
+  // startsWith('admin@')) previously let lookalike addresses such as
+  // `aaayatulsekh3037@gmail.com` gain owner access and self-insert into the
+  // admins table.
   return false;
 }
 
@@ -99,8 +101,9 @@ export async function verifyAdmin(
   const cleanEmail = email.toLowerCase().trim();
 
   // If already cached in memory for this session, return it
-  if (cachedAdmin !== undefined && cachedAdmin?.email?.toLowerCase() === cleanEmail) {
-    return cachedAdmin;
+  const cached = getCachedAdminRecord();
+  if (cached && cached.email?.toLowerCase() === cleanEmail) {
+    return cached;
   }
 
   // 1. Check if email is in the designated Super Admin / Owner list (INSTANT ACCESS)
@@ -114,7 +117,7 @@ export async function verifyAdmin(
       avatar_url: '/images/default-avatar.png',
     };
 
-    cachedAdmin = ownerRecord;
+    setCachedAdminRecord(ownerRecord);
 
     // Non-blocking background sync with Supabase
     if (isSupabaseConfigured && supabase) {
@@ -171,8 +174,8 @@ export async function verifyAdmin(
       const result = await Promise.race([queryPromise, timeoutPromise]);
 
       if (result !== 'timeout') {
-        cachedAdmin = result;
-        return cachedAdmin;
+        setCachedAdminRecord(result as AdminRecord);
+        return result as AdminRecord;
       }
     } catch (e) {
       console.log('[v0] Supabase admin lookup failed:', e);
@@ -192,12 +195,12 @@ export async function verifyAdmin(
         display_name: profile.business_name || cleanEmail.split('@')[0],
         avatar_url: profile.avatar_url,
       };
-      cachedAdmin = localAdmin;
-      return cachedAdmin;
+      setCachedAdminRecord(localAdmin);
+      return localAdmin;
     }
   }
 
-  cachedAdmin = null;
+  setCachedAdminRecord(null);
   return null;
 }
 
@@ -247,7 +250,7 @@ async function redeemInvite(email: string): Promise<AdminRecord | null> {
 }
 
 export function getCachedAdmin(): AdminRecord | null {
-  return cachedAdmin ?? null;
+  return getCachedAdminRecord();
 }
 
 /**
@@ -261,10 +264,6 @@ export async function resolvePostAuthRoute(
 ): Promise<'/admin' | '/dashboard'> {
   const admin = await verifyAdmin(email, userId);
   return admin ? '/admin' : '/dashboard';
-}
-
-export function clearAdminCache() {
-  cachedAdmin = undefined;
 }
 
 /** Update the signed-in admin's display name / avatar and refresh the cache.
@@ -287,7 +286,7 @@ export async function updateAdminProfile(
     console.log('[v0] admin profile update failed:', error.message);
     return null;
   }
-  if (data) cachedAdmin = data as AdminRecord;
+  if (data) setCachedAdminRecord(data as AdminRecord);
   return (data as AdminRecord) ?? null;
 }
 

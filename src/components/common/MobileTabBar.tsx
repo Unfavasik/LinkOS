@@ -7,7 +7,7 @@ import { useIsAdmin } from '../../lib/adminAuth';
 const TABS = [
   { label: 'Home', icon: Home, to: '/' },
   { label: 'Templates', icon: LayoutGrid, to: '/templates' },
-  { label: 'Create', icon: PlusCircle, to: '/onboarding' },
+  { label: 'Create', icon: PlusCircle, to: '/dashboard/websites/new' },
   { label: 'Resources', icon: BookOpen, to: '/resources' },
 ];
 

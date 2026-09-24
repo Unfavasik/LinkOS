@@ -40,7 +40,6 @@ import { CreateWebsitePage } from './pages/dashboard/CreateWebsitePage';
 import { WebsiteManagePage } from './pages/dashboard/WebsiteManagePage';
 import { LoginPage } from './pages/LoginPage';
 import { SignupPage } from './pages/SignupPage';
-import { OnboardingWizard } from './pages/OnboardingWizard';
 import { DashboardLayout } from './components/dashboard/DashboardLayout';
 import { OverviewPage } from './pages/dashboard/OverviewPage';
 import { PageDetailPage } from './pages/dashboard/PageDetailPage';
@@ -183,7 +182,9 @@ export default function App() {
         {/* Auth & Onboarding */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
-        <Route path="/onboarding" element={<OnboardingWizard />} />
+        {/* The old onboarding wizard was removed; old links now lead to the
+            Create Website flow. */}
+        <Route path="/onboarding" element={<Navigate to="/dashboard/websites/new" replace />} />
 
         {/* Dashboard & Admin */}
           <Route path="/dashboard" element={<DashboardLayout />}>

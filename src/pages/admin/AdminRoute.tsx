@@ -11,9 +11,13 @@ import { AdminLayout } from './AdminLayout';
  */
 export const AdminRoute: React.FC = () => {
   const [status, setStatus] = useState<'checking' | 'allowed' | 'denied'>(() => {
-    const cached = getCachedAdmin();
-    if (cached) return 'allowed';
     const user = StorageService.getActiveUser();
+    const cached = getCachedAdmin();
+    // The cached admin must belong to the signed-in user — a stale record
+    // left behind by a previous account must never grant instant entry.
+    if (cached && user && cached.email.toLowerCase() === user.email?.toLowerCase()) {
+      return 'allowed';
+    }
     // Offline mode only: known owner emails get instant entry. When Supabase
     // is configured, verification must go through the `admins` table.
     if (user?.email && isKnownAdminEmail(user.email) && !isSupabaseConfigured) return 'allowed';
