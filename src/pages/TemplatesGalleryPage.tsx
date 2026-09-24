@@ -1,7 +1,7 @@
 import { PublicNavbar } from '../components/common/PublicNavbar';
 import { MobileTabBar } from '../components/common/MobileTabBar';
 import React, { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   Search,
   Heart,
@@ -33,6 +33,7 @@ import { StorageService } from '../lib/storage';
 import { TemplateApplyWizard } from '../components/templates/TemplateApplyWizard';
 import { SeoHead } from '../components/common/SeoHead';
 import { coverFor } from '../data/templateCovers';
+import type { Profile } from '../types';
 
 /* Filter pills — mirrors the design's category row */
 const CATEGORY_PILLS: { label: string; icon: React.ElementType; match: TemplateCategory | 'All' }[] = [
@@ -69,7 +70,20 @@ export const TemplatesGalleryPage: React.FC = () => {
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState<'All' | TemplateCategory>('All');
   const [showAllCategories, setShowAllCategories] = useState(false);
+  const navigate = useNavigate();
   const [wizardTemplate, setWizardTemplate] = useState<PageTemplate | null>(null);
+  // Prefill the apply wizard with the signed-in user's My Page data so
+  // creating a website starts from everything they already filled in.
+  // The wizard reads the profile once on mount, so we wait for the load
+  // to finish before opening it.
+  const [userProfile, setUserProfile] = useState<Profile | null>(null);
+  const [profileLoaded, setProfileLoaded] = useState(false);
+  React.useEffect(() => {
+    StorageService.getCurrentUserProfile()
+      .then(setUserProfile)
+      .catch(() => {})
+      .finally(() => setProfileLoaded(true));
+  }, []);
   const [paywall, setPaywall] = useState<{ name: string; id: string } | null>(null);
   const { data: overrides } = useTemplateOverrides();
 
@@ -318,10 +332,15 @@ export const TemplatesGalleryPage: React.FC = () => {
 
       <MobileTabBar active="Templates" />
 
-      {wizardTemplate && (
+      {wizardTemplate && profileLoaded && (
         <TemplateApplyWizard
           template={wizardTemplate}
-          existingProfile={null}
+          existingProfile={userProfile}
+          websiteMode
+          onWebsitePublished={(site) => {
+            setWizardTemplate(null);
+            navigate(`/dashboard/websites/${site.id}`);
+          }}
           onClose={() => setWizardTemplate(null)}
           onPublished={() => setWizardTemplate(null)}
         />

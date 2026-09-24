@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
+  Globe,
   Smartphone,
   Package,
   ShoppingBag,
@@ -28,12 +29,16 @@ import {
   Loader2,
   Home,
   ShieldCheck,
+  Megaphone,
 } from 'lucide-react';
+import useSWR from 'swr';
 import { LinkOsLogo } from '../common/LinkOsLogo';
 import { StorageService } from '../../lib/storage';
 import { Profile } from '../../types';
 import { ShareModal } from '../profile/ShareModal';
 import { useIsAdmin, isKnownAdminEmail } from '../../lib/adminAuth';
+import { fetchMyWebsites, type WebsiteRecord } from '../../lib/websites';
+import { loadPublishedAnnouncements, type Announcement } from '../../lib/announcements';
 
 export const DashboardLayout: React.FC = () => {
   const location = useLocation();
@@ -44,7 +49,20 @@ export const DashboardLayout: React.FC = () => {
   const [copied, setCopied] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [confirmLogout, setConfirmLogout] = useState(false);
   const isVerifiedAdmin = useIsAdmin();
+
+  // The "My Page" slot becomes the user's website once they create one —
+  // the tab opens the website editor instead of the profile editor.
+  const { data: websites } = useSWR('dashboard-my-websites', fetchMyWebsites, {
+    revalidateOnFocus: false,
+  });
+  const latestSite: WebsiteRecord | undefined = websites?.[0];
+  // Latest published announcement, shown inside the menu.
+  const { data: announcements } = useSWR('dashboard-announcements', loadPublishedAnnouncements, {
+    revalidateOnFocus: false,
+  });
+  const latestAnnouncement: Announcement | undefined = announcements?.find((a) => a.published);
   const isAdmin = isVerifiedAdmin || isKnownAdminEmail(profile?.email) || profile?.role === 'owner' || profile?.role === 'admin';
 
   useEffect(() => {
@@ -91,7 +109,10 @@ export const DashboardLayout: React.FC = () => {
 
   const navItems = [
     { label: 'Overview', path: '/dashboard', icon: LayoutDashboard, exact: true },
-    { label: 'My Page', path: '/dashboard/editor', icon: Smartphone },
+    { label: 'My Websites', path: '/dashboard/websites', icon: Globe },
+    latestSite
+      ? { label: 'My Website', path: `/dashboard/websites/${latestSite.id}/edit`, icon: Globe }
+      : { label: 'My Page', path: '/dashboard/editor', icon: Smartphone },
     { label: 'Templates', path: '/dashboard/templates', icon: LayoutTemplate },
     { label: 'Products', path: '/dashboard/products', icon: Package },
     { label: 'Orders', path: '/dashboard/orders', icon: ShoppingBag },
@@ -101,6 +122,7 @@ export const DashboardLayout: React.FC = () => {
     { label: 'QR Code', path: '/dashboard/qr', icon: QrIcon },
     { label: 'Edit Profile', path: '/dashboard/profile', icon: UserCog },
     { label: 'Needle Assistant', path: '/dashboard/assistant', icon: Sparkles },
+    { label: 'Announcements', path: '/announcements', icon: Megaphone },
     { label: 'Settings', path: '/dashboard/settings', icon: Settings },
   ];
 
@@ -117,6 +139,25 @@ export const DashboardLayout: React.FC = () => {
     .slice(0, 2)
     .join('')
     .toUpperCase();
+
+  // Latest announcement card, rendered inside both the desktop sidebar and
+  // the mobile drawer menu.
+  const announcementCard = latestAnnouncement ? (
+    <Link
+      to="/announcements"
+      className="block p-3.5 rounded-xl bg-blue-500/10 border border-blue-500/25 hover:bg-blue-500/15 transition-colors"
+    >
+      <div className="flex items-center gap-1.5 text-xs font-bold text-blue-300 mb-1">
+        <Megaphone className="w-3.5 h-3.5" />
+        <span>Announcement</span>
+      </div>
+      <p className="text-[11px] font-semibold text-white leading-snug line-clamp-2">
+        {latestAnnouncement.title}
+      </p>
+      <p className="text-[10px] text-slate-400 mt-1 line-clamp-2">{latestAnnouncement.body}</p>
+      <span className="inline-block mt-1.5 text-[10px] font-bold text-blue-400">View all →</span>
+    </Link>
+  ) : null;
 
   // Don't render the dashboard with default/placeholder data while the
   // profile is still loading — it flashes the wrong name and no avatar.
@@ -219,7 +260,11 @@ export const DashboardLayout: React.FC = () => {
                   className="w-full h-full object-cover"
                 />
               ) : (
-                ownerInitials
+                <img
+                  src="/images/default-avatar.png"
+                  alt="Default avatar"
+                  className="w-full h-full object-cover"
+                />
               )}
             </button>
           </div>
@@ -272,6 +317,9 @@ export const DashboardLayout: React.FC = () => {
             })}
           </nav>
 
+          {/* Latest Announcement */}
+          {announcementCard && <div className="mb-3">{announcementCard}</div>}
+
           {/* Pro Upgrade Teaser Card */}
           <div className="p-3.5 rounded-xl bg-gradient-to-b from-amber-500/10 to-transparent border border-amber-500/20 text-left">
             <div className="flex items-center gap-1.5 text-xs font-bold text-amber-400 mb-1">
@@ -303,7 +351,7 @@ export const DashboardLayout: React.FC = () => {
             </a>
             <button
               type="button"
-              onClick={handleLogout}
+              onClick={() => setConfirmLogout(true)}
               className="w-full flex items-center gap-3 px-3.5 py-2 rounded-xl text-xs text-red-400 hover:bg-red-500/10 transition-colors text-left"
             >
               <LogOut className="w-4 h-4" />
@@ -378,12 +426,15 @@ export const DashboardLayout: React.FC = () => {
                     );
                   })}
                 </nav>
+
+                {/* Latest Announcement */}
+                {announcementCard && <div className="mt-4">{announcementCard}</div>}
               </div>
 
               <div className="pt-4 border-t border-white/10">
                 <button
                   type="button"
-                  onClick={handleLogout}
+                  onClick={() => setConfirmLogout(true)}
                   className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs text-red-400 hover:bg-red-500/10"
                 >
                   <LogOut className="w-4 h-4" />
@@ -419,6 +470,46 @@ export const DashboardLayout: React.FC = () => {
           );
         })}
       </nav>
+
+      {/* Logout Confirmation */}
+      {confirmLogout && (
+        <div
+          className="fixed inset-0 z-[60] bg-black/70 backdrop-blur-xs flex items-center justify-center p-4"
+          onClick={() => setConfirmLogout(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Confirm sign out"
+        >
+          <div
+            className="w-full max-w-xs bg-[#0B1424] border border-white/10 rounded-2xl p-5 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-10 h-10 rounded-full bg-red-500/15 flex items-center justify-center mb-3">
+              <LogOut className="w-5 h-5 text-red-400" />
+            </div>
+            <h3 className="text-sm font-bold text-white">Sign out of LinkOS?</h3>
+            <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+              You will need to sign in again to manage your pages and websites.
+            </p>
+            <div className="flex gap-2 mt-4">
+              <button
+                type="button"
+                onClick={() => setConfirmLogout(false)}
+                className="flex-1 py-2 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-xs font-bold text-slate-300 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="flex-1 py-2 rounded-xl bg-red-500 hover:bg-red-400 text-xs font-bold text-white transition-colors"
+              >
+                Sign Out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Share Modal */}
       {profile && (

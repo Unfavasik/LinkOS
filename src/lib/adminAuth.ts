@@ -111,7 +111,7 @@ export async function verifyAdmin(
       role: 'owner',
       is_active: true,
       display_name: cleanEmail.split('@')[0] || 'Super Admin',
-      avatar_url: '/images/resources/avatar.png',
+      avatar_url: '/images/default-avatar.png',
     };
 
     cachedAdmin = ownerRecord;

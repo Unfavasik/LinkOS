@@ -44,6 +44,7 @@ import { StorageService } from '../../lib/storage';
 import { getTemplateById } from '../../data/templates';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { updateTemplate, type TemplateOverride, type TemplateServices } from '../../lib/templateService';
+import { fetchWebsite, updateWebsite } from '../../lib/websites';
 import { Profile, Product } from '../../types';
 import { DEMO_REVIEWS } from '../../data/demoData';
 import { useUploadProgress, UploadProgressBar } from '../../components/UploadProgressBar';
@@ -100,12 +101,15 @@ const SectionCard: React.FC<{ title: string; children: React.ReactNode; onEdit?:
 const inputCls =
   'w-full rounded-xl bg-[#060D1A] border border-white/10 px-3 py-2.5 text-xs text-white placeholder:text-slate-500 outline-none focus:border-blue-500/60 focus:ring-2 focus:ring-blue-600/20 transition-colors';
 
-export const EditorPage: React.FC<{ templateMode?: boolean }> = ({ templateMode = false }) => {
+export const EditorPage: React.FC<{ templateMode?: boolean; websiteMode?: boolean }> = ({
+  templateMode = false,
+  websiteMode = false,
+}) => {
   const outletCtx = useOutletContext<{
     profile: Profile | null;
     setProfile: (p: Profile) => void;
   } | null>();
-  const { templateId } = useParams<{ templateId: string }>();
+  const { templateId, websiteId } = useParams<{ templateId: string; websiteId: string }>();
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState<Profile | null>(null);
@@ -148,6 +152,11 @@ export const EditorPage: React.FC<{ templateMode?: boolean }> = ({ templateMode 
   const [tplMeta, setTplMeta] = useState({ category: '', popularity: 0, is_pro: false, is_active: true });
   const [tplMissing, setTplMissing] = useState(false);
 
+  // Website-mode state: editing a user-owned website from the websites table
+  const [websiteSlug, setWebsiteSlug] = useState('');
+  const [websiteStatus, setWebsiteStatus] = useState<'draft' | 'live' | null>(null);
+  const [publishing, setPublishing] = useState(false);
+
   // inline "add" forms
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [newProdName, setNewProdName] = useState('');
@@ -175,6 +184,30 @@ export const EditorPage: React.FC<{ templateMode?: boolean }> = ({ templateMode 
   const galleryInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    if (websiteMode && websiteId) {
+      // Load the user-owned website's own content snapshot — the template
+      // library row is never touched.
+      let cancelled = false;
+      (async () => {
+        const site = await fetchWebsite(websiteId);
+        if (cancelled) return;
+        if (!site) {
+          navigate('/dashboard/websites');
+          return;
+        }
+        // Products are shared with My Page — keyed by the owner's profile id,
+        // so the website editor shows (and saves to) the same catalog.
+        const ownerProfile = outletCtx?.profile ?? (await StorageService.getCurrentUserProfile());
+        const catalogId = ownerProfile?.id ?? site.id;
+        setFormData({ ...site.content, id: catalogId } as Profile);
+        setWebsiteSlug(site.slug);
+        setWebsiteStatus(site.status);
+        StorageService.getProducts(catalogId).then(setProducts).catch(() => {});
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }
     if (templateMode && templateId) {
       // Seed the same Profile-shaped editor from the template library row
       let cancelled = false;
@@ -255,11 +288,41 @@ export const EditorPage: React.FC<{ templateMode?: boolean }> = ({ templateMode 
   const set = (field: keyof Profile, value: any) =>
     setFormData((prev) => (prev ? { ...prev, [field]: value } : null));
 
-  const liveUrl = `linkos.in/${formData.username}`;
+  const liveUrl = websiteMode && websiteSlug ? `linkos.app/${websiteSlug}` : `linkos.in/${formData.username}`;
+
+  const handlePublish = async () => {
+    if (!websiteId || !formData) return;
+    setPublishing(true);
+    // Publish always saves current edits first so live content matches the editor
+    await updateWebsite(websiteId, {
+      content: formData,
+      name: formData.business_name?.trim() || undefined,
+      status: websiteStatus === 'live' ? 'draft' : 'live',
+    });
+    setWebsiteStatus(websiteStatus === 'live' ? 'draft' : 'live');
+    setPublishing(false);
+    triggerToast(
+      websiteStatus === 'live' ? 'Unpublished' : 'Website Published!',
+      websiteStatus === 'live' ? 'Your website is now a draft.' : `Your website is live at linkos.app/${websiteSlug}`,
+    );
+  };
 
   const handleSave = async () => {
     setSaving(true);
     try {
+      if (websiteMode && websiteId && formData) {
+        // Save to the user's own website row — never the template library.
+        const res = await updateWebsite(websiteId, {
+          content: formData,
+          name: formData.business_name?.trim() || undefined,
+        });
+        if (!res) {
+          triggerToast('Save Failed', 'Could not save changes. Please try again.', 'error');
+          return;
+        }
+        triggerToast('Saved Successfully!', 'Your changes are saved. Publish to make them live.');
+        return;
+      }
       if (templateMode && templateId) {
         // Save back to the template library — no user profile is touched.
         // Published pages keep their own copied values; new pages pick these up.
@@ -1480,7 +1543,7 @@ export const EditorPage: React.FC<{ templateMode?: boolean }> = ({ templateMode 
             </div>
           </SectionCard>
 
-          {/* Save + View Live */}
+          {/* Save + Publish + View Live */}
           <div className="space-y-2.5">
             <button
               type="button"
@@ -1490,8 +1553,20 @@ export const EditorPage: React.FC<{ templateMode?: boolean }> = ({ templateMode 
             >
               <Save className="w-4 h-4" /> {saving ? 'Saving…' : templateMode ? 'Save to Template Library' : 'Save Changes'}
             </button>
+            {websiteMode && (
+              <button
+                type="button"
+                onClick={handlePublish}
+                disabled={publishing}
+                className={`w-full inline-flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold text-white transition-colors disabled:opacity-50 ${
+                  websiteStatus === 'live' ? 'bg-zinc-700 hover:bg-zinc-600' : 'bg-emerald-600 hover:bg-emerald-500 shadow-lg shadow-emerald-600/25'
+                }`}
+              >
+                <Globe className="w-4 h-4" /> {publishing ? 'Publishing…' : websiteStatus === 'live' ? 'Unpublish Website' : 'Publish Changes'}
+              </button>
+            )}
             <a
-              href={templateMode ? `/templates/preview/${templateId}` : `/${formData.username}`}
+              href={templateMode ? `/templates/preview/${templateId}` : websiteMode ? `/site/${websiteSlug}` : `/${formData.username}`}
               className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 py-3 text-sm font-bold text-white transition-colors"
             >
               {templateMode ? 'Preview Template' : 'View Live Page'} <ExternalLink className="w-4 h-4" />
@@ -1610,7 +1685,7 @@ export const EditorPage: React.FC<{ templateMode?: boolean }> = ({ templateMode 
         </div>
       )}
 
-      {/* ══════════ SETTINGS TAB ══════════ */}
+      {/* ══════════ SETTINGS TAB ═��════════ */}
       {activeTab === 'settings' && (
         <div className="mt-4 space-y-4">
           <SectionCard title="Page Address">
