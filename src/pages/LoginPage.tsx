@@ -1,19 +1,38 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowRight, Lock, Mail, Eye, EyeOff, Coffee, Scissors, ShoppingBag, Car, Dumbbell, Store, HeartPulse, AlertCircle, MailCheck } from 'lucide-react';
-import { AuthShell, SocialButtons } from '../components/auth/AuthShell';
+import {
+  ArrowRight,
+  Eye,
+  EyeOff,
+  Gauge,
+  LayoutTemplate,
+  Link2,
+  Lock,
+  Mail,
+  ShieldCheck,
+  Sparkles,
+  TrendingUp,
+  User,
+  Wand2,
+} from 'lucide-react';
+import {
+  AuthAlert,
+  AuthShell,
+  PrimaryButton,
+  SecurityNote,
+  SocialButtons,
+  TextField,
+  type SocialProvider,
+} from '../components/auth/AuthShell';
 import { StorageService } from '../lib/storage';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { verifyAdmin } from '../lib/adminAuth';
 
-const FLOAT_TILES = [
-  { Icon: Coffee, cls: 'left-2 top-2 -rotate-12', color: 'text-zinc-200' },
-  { Icon: Scissors, cls: 'left-[104px] top-0 rotate-6', color: 'text-violet-400' },
-  { Icon: ShoppingBag, cls: 'right-3 top-3 rotate-12', color: 'text-pink-400' },
-  { Icon: Car, cls: 'left-0 top-[92px] -rotate-6', color: 'text-sky-400' },
-  { Icon: Dumbbell, cls: 'right-0 top-[104px] rotate-12', color: 'text-emerald-400' },
-  { Icon: Store, cls: 'left-6 bottom-0 rotate-3', color: 'text-teal-300' },
-  { Icon: HeartPulse, cls: 'right-8 bottom-0 -rotate-6', color: 'text-blue-300' },
+const FEATURES = [
+  { Icon: LayoutTemplate, tile: 'bg-blue-500/15 text-blue-300 ring-1 ring-blue-500/30', title: 'Professional Templates', sub: '50+ ready-to-use templates' },
+  { Icon: Wand2, tile: 'bg-violet-500/15 text-violet-300 ring-1 ring-violet-500/30', title: 'No Coding Required', sub: 'Drag, drop, and customize' },
+  { Icon: Gauge, tile: 'bg-teal-500/15 text-teal-300 ring-1 ring-teal-500/30', title: 'Fast & Reliable', sub: 'Built for performance' },
+  { Icon: TrendingUp, tile: 'bg-sky-500/15 text-sky-300 ring-1 ring-sky-500/30', title: 'Grow Your Business', sub: 'Everything you need in one place' },
 ];
 
 /**
@@ -145,173 +164,222 @@ export const LoginPage: React.FC = () => {
     navigate('/dashboard');
   };
 
-  const handleSocial = async (provider: 'google' | 'apple' | 'facebook') => {
-    if (provider === 'google' && isSupabaseConfigured && supabase) {
+  const handleSocial = async (provider: SocialProvider) => {
+    if (isSupabaseConfigured && supabase) {
       try {
         const { error: oauthErr } = await supabase.auth.signInWithOAuth({
-          provider: 'google',
+          provider,
           options: {
-            redirectTo: `${window.location.origin}/admin`,
+            redirectTo: `${window.location.origin}/dashboard`,
           },
         });
         if (!oauthErr) return;
       } catch (err) {
-        console.warn('Google OAuth error:', err);
+        console.warn('OAuth error:', err);
       }
     }
-    // Instant direct sign-in
-    StorageService.loginUser('ayatulsekh3037@gmail.com');
-    const admin = await verifyAdmin('ayatulsekh3037@gmail.com');
+    // Instant direct sign-in for testing without a configured provider
+    const mockEmail = `${provider}.user@linkos.dev`;
+    StorageService.loginUser(mockEmail);
+    const admin = await verifyAdmin(mockEmail);
     navigate(admin ? '/admin' : '/dashboard');
   };
 
-  return (
-    <AuthShell>
-      {/* Floating tiles + glowing card */}
-      <div className="relative h-52 mt-4" aria-hidden="true">
-        {FLOAT_TILES.map(({ Icon, cls, color }, i) => (
-          <div key={i} className={`absolute ${cls} w-14 h-14 rounded-2xl bg-white/[0.06] border border-white/10 backdrop-blur-sm flex items-center justify-center shadow-lg shadow-black/30`}>
-            <Icon className={`w-6 h-6 ${color}`} strokeWidth={1.75} />
-          </div>
-        ))}
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-56 py-6 rounded-2xl bg-gradient-to-br from-blue-600/40 to-blue-900/30 border border-blue-400/40 shadow-[0_0_50px_rgba(37,99,235,0.45)] -rotate-3">
-          <p className="font-serif italic text-lg leading-snug text-white text-center">
-            One Link<br />Many Possibilities
-          </p>
-        </div>
+  const brandPanel = (
+    <div className="flex w-full flex-col justify-between p-10 xl:p-14">
+      <div className="relative">
+        <h1 className="max-w-md text-4xl font-extrabold leading-[1.08] tracking-tight xl:text-[44px]">
+          Turn Your Ideas Into <span className="text-[#3B82F6]">Reality</span>
+        </h1>
+        <p className="mt-4 max-w-md text-[15px] leading-relaxed text-zinc-400">
+          Join thousands of creators, businesses, and dreamers building amazing websites with LinkOS.
+        </p>
+
+        <ul className="mt-10 space-y-6">
+          {FEATURES.map(({ Icon, tile, title, sub }) => (
+            <li key={title} className="flex items-center gap-4">
+              <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${tile}`}>
+                <Icon className="h-5 w-5" strokeWidth={1.75} />
+              </span>
+              <div>
+                <p className="text-[15px] font-bold">{title}</p>
+                <p className="text-[13px] text-zinc-400">{sub}</p>
+              </div>
+            </li>
+          ))}
+        </ul>
       </div>
 
-      {/* Heading */}
-      <h1 className="mt-5 text-[28px] font-bold tracking-tight leading-tight">
-        Welcome <span className="text-[#3B82F6]">Back</span>
+      <div className="relative mt-12">
+        <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
+          <div className="flex items-start gap-4">
+            <span
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-900 text-sm font-bold text-white"
+              aria-hidden="true"
+            >
+              AH
+            </span>
+            <div>
+              <p className="text-[14px] leading-relaxed text-sky-100/90">
+                &ldquo;LinkOS made it so easy to launch my business website. Highly recommended!&rdquo;
+              </p>
+              <p className="mt-2 text-[12px] font-semibold">&mdash; Arafat H.</p>
+              <p className="text-[11px] text-zinc-500">Small Business Owner</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-8 flex items-center gap-10">
+          <span className="text-[12px] text-zinc-400">
+            <strong className="block text-xl font-extrabold text-white">10K+</strong>
+            Active Users
+          </span>
+          <span className="text-[12px] text-zinc-400">
+            <strong className="block text-xl font-extrabold text-white">50+</strong>
+            Templates
+          </span>
+          <span className="text-[12px] text-zinc-400">
+            <strong className="block text-xl font-extrabold text-white">4.8/5</strong>
+            User Rating
+          </span>
+        </div>
+
+        <p className="mt-10 flex items-center gap-2 text-[12px] text-zinc-500">
+          <Link2 className="h-4 w-4 text-[#3B82F6]" aria-hidden="true" />
+          Build a better online presence with LinkOS.
+        </p>
+      </div>
+    </div>
+  );
+
+  return (
+    <AuthShell variant="login" left={brandPanel}>
+      <h1 className="text-center text-[26px] font-extrabold tracking-tight text-white md:text-zinc-900">
+        Welcome Back
       </h1>
-      <p className="mt-1.5 text-[13px] leading-relaxed text-zinc-400 text-pretty">
-        Log in to your LinkOS account and continue building your online presence.
+      <p className="mt-1.5 text-center text-[13px] leading-relaxed text-zinc-400 md:text-zinc-500">
+        Log in to your LinkOS account and continue building amazing things.
       </p>
 
-      {/* Form card */}
-      <div className="mt-5 rounded-2xl bg-[#0B1626] border border-white/10 p-5">
-        {error && (
-          <div role="alert" className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-300 text-xs flex items-start gap-2">
-            <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-            <span>{error}</span>
-          </div>
-        )}
-        {info && (
-          <div role="status" className="mb-4 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-start gap-2">
-            <MailCheck className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-            <span>{info}</span>
-          </div>
-        )}
+      {/* Login / Sign Up tabs */}
+      <div
+        className="mt-6 grid grid-cols-2 gap-1 rounded-2xl border border-white/10 bg-white/[0.06] p-1.5 md:border-transparent md:bg-zinc-100"
+        role="tablist"
+        aria-label="Authentication"
+      >
+        <span
+          role="tab"
+          aria-selected="true"
+          className="flex items-center justify-center gap-2 rounded-xl bg-white py-2.5 text-[13px] font-bold text-[#1D7AFC] shadow-sm"
+        >
+          <User className="h-4 w-4" aria-hidden="true" />
+          Login
+        </span>
+        <Link
+          to="/signup"
+          role="tab"
+          aria-selected="false"
+          className="flex items-center justify-center gap-2 rounded-xl py-2.5 text-[13px] font-semibold text-zinc-300 transition-colors hover:text-white md:text-zinc-600 md:hover:text-zinc-900"
+        >
+          <Sparkles className="h-4 w-4" aria-hidden="true" />
+          Sign Up
+        </Link>
+      </div>
+
+      <div className="mt-6 md:rounded-3xl md:border md:border-zinc-100 md:bg-white md:p-8 md:shadow-[0_24px_70px_rgba(15,23,42,0.08)]">
+        {error && <AuthAlert tone="error">{error}</AuthAlert>}
+        {info && <AuthAlert tone="info">{info}</AuthAlert>}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label htmlFor="login-email" className="block text-[13px] font-semibold mb-1.5">Email or Phone</label>
-            <div className="relative">
-              <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 pointer-events-none" />
-              <input
-                id="login-email"
-                type="text"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Enter your email or phone"
-                className="w-full pl-10 pr-3 py-3 text-[13px] rounded-xl bg-[#0A1420] border border-white/10 placeholder:text-zinc-500 focus:ring-2 focus:ring-blue-500/60 focus:border-blue-500/60 outline-none transition-all"
-              />
-            </div>
-          </div>
+          <TextField
+            id="login-email"
+            label="Email or Username"
+            type="text"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@example.com"
+            autoComplete="email"
+            icon={<Mail className="h-4 w-4" />}
+          />
 
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label htmlFor="login-password" className="block text-[13px] font-semibold">Password</label>
-              <button type="button" onClick={handleForgotPassword} className="text-[11px] font-semibold text-[#3B82F6] hover:text-blue-400 transition-colors">
-                Forgot Password?
-              </button>
-            </div>
-            <div className="relative">
-              <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 pointer-events-none" />
-              <input
-                id="login-password"
-                type={showPassword ? 'text' : 'password'}
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter your password"
-                className="w-full pl-10 pr-10 py-3 text-[13px] rounded-xl bg-[#0A1420] border border-white/10 placeholder:text-zinc-500 focus:ring-2 focus:ring-blue-500/60 focus:border-blue-500/60 outline-none transition-all"
-              />
+          <TextField
+            id="login-password"
+            label="Password"
+            type={showPassword ? 'text' : 'password'}
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Enter your password"
+            autoComplete="current-password"
+            icon={<Lock className="h-4 w-4" />}
+            trailing={
               <button
                 type="button"
                 onClick={() => setShowPassword((v) => !v)}
                 aria-label={showPassword ? 'Hide password' : 'Show password'}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors"
+                className="text-zinc-500 transition-colors hover:text-zinc-300 md:hover:text-zinc-700"
               >
-                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
-            </div>
+            }
+          />
+
+          <div className="flex items-center justify-between">
+            <label className="flex cursor-pointer select-none items-center gap-2.5">
+              <input
+                type="checkbox"
+                checked={remember}
+                onChange={(e) => setRemember(e.target.checked)}
+                className="h-4 w-4 rounded accent-[#1D7AFC]"
+              />
+              <span className="text-[13px] text-zinc-300 md:text-zinc-700">Remember me</span>
+            </label>
+            <button
+              type="button"
+              onClick={handleForgotPassword}
+              className="text-[12px] font-semibold text-[#1D7AFC] transition-colors hover:text-blue-500"
+            >
+              Forgot password?
+            </button>
           </div>
 
-          <label className="flex items-center gap-2.5 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={remember}
-              onChange={(e) => setRemember(e.target.checked)}
-              className="w-4 h-4 rounded accent-[#1D7AFC]"
-            />
-            <span className="text-[13px] text-zinc-300">Remember me</span>
-          </label>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-[#1D7AFC] hover:bg-blue-500 text-white text-sm font-bold shadow-lg shadow-blue-600/30 transition-all active:scale-[0.98] disabled:opacity-50"
-          >
+          <PrimaryButton type="submit" disabled={loading}>
             <span>
-              {loading
-                ? stage === 'verifying'
-                  ? 'Verifying access...'
-                  : 'Signing in...'
-                : 'Log In'}
+              {loading ? (stage === 'verifying' ? 'Verifying access...' : 'Signing in...') : 'Login to LinkOS'}
             </span>
-            <ArrowRight className="w-4 h-4" />
-          </button>
+            <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          </PrimaryButton>
         </form>
-
-        <div className="mt-4 pt-4 border-t border-white/10">
-          <button
-            type="button"
-            onClick={handleDemoLogin}
-            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-xs font-semibold text-sky-300 transition-all active:scale-[0.98]"
-          >
-            <Coffee className="w-3.5 h-3.5 text-amber-400" />
-            <span>1-Click Demo Login (Urban Brew Café)</span>
-          </button>
-          <p className="text-[11px] text-zinc-500 text-center mt-2">
-            Tip: You can also use <span className="text-zinc-400 font-mono">hello@urbanbrewcafe.in</span> or any email
-          </p>
-        </div>
 
         <SocialButtons dividerLabel="Or continue with" onSocial={handleSocial} />
 
-        <p className="text-center text-[13px] text-zinc-400 mt-5">
+        <p className="mt-5 text-center text-[13px] text-zinc-400 md:text-zinc-600">
           Don&apos;t have an account?{' '}
-          <Link to="/signup" className="font-semibold text-[#3B82F6] hover:text-blue-400 transition-colors">
-            Sign Up
+          <Link to="/signup" className="font-semibold text-[#1D7AFC] transition-colors hover:text-blue-500">
+            Sign up
           </Link>
         </p>
-      </div>
 
-      {/* Bottom quote */}
-      <div className="relative mt-8 pt-8 text-center" aria-hidden="true">
-        <svg viewBox="0 0 400 40" className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-md stroke-blue-500/20 fill-blue-950/40" preserveAspectRatio="none">
-          <path d="M0 40 Q 200 -10 400 40" strokeWidth="1" />
-        </svg>
-        <p className="relative font-serif italic text-[15px] leading-relaxed text-sky-100/80">
-          &ldquo;Empowering local businesses<br />everywhere.&rdquo;
-        </p>
-        <div className="relative flex items-center justify-center gap-1.5 mt-4">
-          <span className="w-5 h-1 rounded-full bg-[#1D7AFC]" />
-          <span className="w-1.5 h-1 rounded-full bg-zinc-600" />
+        <SecurityNote />
+
+        <div className="mt-4 hidden items-center justify-center gap-4 border-t border-zinc-100 pt-4 text-[11px] text-zinc-400 md:flex">
+          <span>Terms of Service</span>
+          <span aria-hidden="true">|</span>
+          <span>Privacy Policy</span>
+          <span aria-hidden="true">|</span>
+          <span>Help Center</span>
         </div>
+
+        <p className="mt-4 text-center">
+          <button
+            type="button"
+            onClick={handleDemoLogin}
+            className="text-[11px] text-zinc-500 underline underline-offset-2 transition-colors hover:text-zinc-300 md:text-zinc-400 md:hover:text-zinc-600"
+          >
+            Explore demo business
+          </button>
+        </p>
       </div>
     </AuthShell>
   );

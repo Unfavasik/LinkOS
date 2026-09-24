@@ -1,34 +1,125 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowRight, Lock, Mail, Eye, EyeOff, User, ShieldCheck, Users, Zap, AlertCircle } from 'lucide-react';
-import { AuthShell, SocialButtons } from '../components/auth/AuthShell';
+import {
+  ArrowLeft,
+  ArrowRight,
+  AtSign,
+  Briefcase,
+  Building2,
+  Check,
+  CheckCircle2,
+  Cloud,
+  Code2,
+  Eye,
+  EyeOff,
+  FileText,
+  Globe,
+  LayoutGrid,
+  LayoutTemplate,
+  Lock,
+  Mail,
+  MoreHorizontal,
+  Rocket,
+  ShieldCheck,
+  ShoppingBag,
+  Sparkles,
+  TrendingUp,
+  User,
+  Users,
+  Zap,
+} from 'lucide-react';
+import {
+  AuthAlert,
+  AuthShell,
+  PrimaryButton,
+  SecurityNote,
+  SignupStepper,
+  SocialButtons,
+  TextField,
+  type SocialProvider,
+} from '../components/auth/AuthShell';
+import { LinkOsLogo } from '../components/common/LinkOsLogo';
 import { StorageService } from '../lib/storage';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { resolvePostAuthRoute, verifyAdmin } from '../lib/adminAuth';
 
-const COLLAGE = [
-  { src: '/images/cafe/interior.webp', alt: 'Café interior', cls: 'left-0 top-0 w-28 h-20 -rotate-6' },
-  { src: '/images/collage/gym.webp', alt: 'Gym', cls: 'right-0 top-0 w-24 h-20 rotate-6' },
-  { src: '/images/collage/car-detailing.webp', alt: 'Car detailing workshop', cls: 'left-2 bottom-0 w-24 h-20 rotate-3' },
-  { src: '/images/collage/clothing.webp', alt: 'Clothing store', cls: 'right-2 bottom-0 w-24 h-24 -rotate-3' },
+const SIGNUP_FEATURES = [
+  { Icon: Zap, tile: 'bg-violet-500/15 text-violet-300 ring-1 ring-violet-500/30', title: 'Instant Access', sub: 'Start building in seconds' },
+  { Icon: LayoutGrid, tile: 'bg-blue-500/15 text-blue-300 ring-1 ring-blue-500/30', title: '50+ Professional Templates', sub: 'For any business or idea' },
+  { Icon: Cloud, tile: 'bg-sky-500/15 text-sky-300 ring-1 ring-sky-500/30', title: 'No Coding Required', sub: 'Drag, drop, and customize' },
+  { Icon: TrendingUp, tile: 'bg-violet-500/15 text-violet-300 ring-1 ring-violet-500/30', title: 'Grow Faster', sub: 'With powerful built-in tools' },
+];
+
+const PERSONAS = [
+  { id: 'individual', Icon: User, title: 'Individual', sub: "I'm a student, creator, or hobbyist" },
+  { id: 'business', Icon: Briefcase, title: 'Business Owner', sub: 'I run a business' },
+  { id: 'developer', Icon: Code2, title: 'Developer', sub: 'I build for clients or myself' },
+  { id: 'agency', Icon: Building2, title: 'Agency', sub: 'I work with multiple clients' },
+];
+
+const INTERESTS = [
+  { id: 'templates', Icon: LayoutTemplate, label: 'Website Templates' },
+  { id: 'ecommerce', Icon: ShoppingBag, label: 'Ecommerce' },
+  { id: 'portfolio', Icon: Briefcase, label: 'Portfolio' },
+  { id: 'blog', Icon: FileText, label: 'Blog / Content' },
+  { id: 'landing', Icon: Rocket, label: 'Landing Pages' },
+  { id: 'tools', Icon: LayoutGrid, label: 'Business Tools' },
+  { id: 'domain', Icon: Globe, label: 'Custom Domain' },
+  { id: 'other', Icon: MoreHorizontal, label: 'Other' },
+];
+
+const HEARD_OPTIONS = ['Google Search', 'Social Media', 'Friend or Colleague', 'YouTube', 'Other'];
+
+const SUCCESS_FEATURES = [
+  { Icon: Rocket, tile: 'bg-blue-500/20 text-blue-300 ring-1 ring-blue-400/30', title: 'Explore Templates', sub: '50+ professional templates' },
+  { Icon: Sparkles, tile: 'bg-violet-500/20 text-violet-300 ring-1 ring-violet-400/30', title: 'Customize Easily', sub: 'No coding required' },
+  { Icon: Users, tile: 'bg-sky-500/20 text-sky-300 ring-1 ring-sky-400/30', title: 'Grow Online', sub: 'Launch and scale faster' },
+];
+
+const CONFETTI = [
+  { cls: 'left-[8%] top-[16%] h-3 w-1.5 rotate-12', color: 'bg-pink-400' },
+  { cls: 'left-[16%] top-[38%] h-2 w-1 -rotate-45', color: 'bg-cyan-300' },
+  { cls: 'left-[10%] bottom-[24%] h-3 w-1.5 rotate-45', color: 'bg-amber-300' },
+  { cls: 'left-[24%] top-[10%] h-2 w-1 rotate-12', color: 'bg-violet-400' },
+  { cls: 'right-[12%] top-[14%] h-3 w-1.5 -rotate-12', color: 'bg-emerald-300' },
+  { cls: 'right-[20%] top-[34%] h-2 w-1 rotate-45', color: 'bg-pink-400' },
+  { cls: 'right-[9%] bottom-[28%] h-3 w-1.5 -rotate-45', color: 'bg-cyan-300' },
+  { cls: 'right-[28%] top-[8%] h-2 w-1 -rotate-12', color: 'bg-amber-300' },
+  { cls: 'left-[38%] top-[6%] h-2 w-1 rotate-90', color: 'bg-emerald-300' },
+  { cls: 'right-[38%] bottom-[12%] h-2 w-1 -rotate-90', color: 'bg-violet-400' },
 ];
 
 export const SignupPage: React.FC = () => {
   const navigate = useNavigate();
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [fullName, setFullName] = useState('');
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [agreed, setAgreed] = useState(true);
+  const [agreed, setAgreed] = useState(false);
+  const [persona, setPersona] = useState<string | null>(null);
+  const [interests, setInterests] = useState<string[]>([]);
+  const [heardAbout, setHeardAbout] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const pwChecks = [
+    { ok: password.length >= 8, label: 'At least 8 characters' },
+    { ok: /[a-zA-Z]/.test(password) && /\d/.test(password), label: 'One letter and one number' },
+    { ok: /[^a-zA-Z0-9]/.test(password) || password.length >= 12, label: 'Use a strong password' },
+  ];
+
+  // A brand-new account continues to the preferences step instead of
+  // navigating straight to the dashboard.
+  const completeAuth = () => setStep(2);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters.');
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters.');
       return;
     }
 
@@ -68,6 +159,7 @@ export const SignupPage: React.FC = () => {
         const { data, error: authError } = await supabase.auth.signUp({
           email,
           password,
+          options: { data: { full_name: fullName, username } },
         });
 
         if (authError) {
@@ -110,9 +202,13 @@ export const SignupPage: React.FC = () => {
           business_name: fullName || 'My Business',
         });
         // An invited admin signing up for the first time goes straight to the
-        // admin panel; everyone else starts onboarding.
+        // admin panel; everyone else continues onboarding.
         const adminRoute = await verifyAdmin(data.user.email || email, data.user.id);
-        navigate(adminRoute ? '/admin' : '/dashboard/websites/new');
+        if (adminRoute) {
+          navigate('/admin');
+          return;
+        }
+        completeAuth();
         return;
       }
 
@@ -127,7 +223,7 @@ export const SignupPage: React.FC = () => {
           await StorageService.saveProfile(p);
         }
       }
-      navigate('/dashboard/websites/new');
+      completeAuth();
     } catch (err: any) {
       setError(err.message || 'Failed to create account.');
     } finally {
@@ -140,171 +236,419 @@ export const SignupPage: React.FC = () => {
     navigate('/dashboard');
   };
 
-  const handleSocial = (provider: 'google' | 'apple' | 'facebook') => {
-    if (provider === 'google' && isSupabaseConfigured && supabase) {
+  const handleSocial = (provider: SocialProvider) => {
+    if (isSupabaseConfigured && supabase) {
       supabase.auth
-        .signInWithOAuth({ provider: 'google', options: { redirectTo: `${window.location.origin}/dashboard` } })
+        .signInWithOAuth({ provider, options: { redirectTo: `${window.location.origin}/dashboard` } })
         .catch(() => undefined);
       return;
     }
     // Fast mock social sign in for testing
     StorageService.loginUser(`${provider}.user@linkos.dev`);
-    navigate('/dashboard/websites/new');
+    completeAuth();
   };
 
-  return (
-    <AuthShell>
-      {/* Photo collage + handwritten note */}
-      <div className="relative h-48 mt-4" aria-hidden="true">
-        {COLLAGE.map((img, i) => (
-          <div key={i} className={`absolute ${img.cls} rounded-xl overflow-hidden border border-white/15 shadow-lg shadow-black/40`}>
-            <img src={img.src} alt={img.alt} className="w-full h-full object-cover" />
-          </div>
-        ))}
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
-          <p className="font-serif italic text-[17px] leading-snug text-white -rotate-3">
-            Your Business<br />Online<br />In Minutes
-          </p>
-          <svg viewBox="0 0 80 12" className="w-20 h-3 mx-auto mt-1 stroke-[#1D7AFC] fill-none" strokeWidth="2.5" strokeLinecap="round">
-            <path d="M2 8 C 25 2, 55 2, 78 6" />
-          </svg>
-        </div>
+  const brandPanel = (
+    <div className="flex w-full flex-col justify-between p-10 xl:p-14">
+      <div className="relative">
+        <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.06] px-4 py-1.5 text-[12px] font-semibold text-zinc-200">
+          <Rocket className="h-3.5 w-3.5 text-[#3B82F6]" aria-hidden="true" />
+          Join 10,000+ creators worldwide
+        </span>
+        <h1 className="mt-6 max-w-md text-4xl font-extrabold leading-[1.08] tracking-tight xl:text-[44px]">
+          Create Your Account and <span className="text-[#3B82F6]">Start Building</span>
+        </h1>
+        <p className="mt-4 max-w-md text-[15px] leading-relaxed text-zinc-400">
+          Join LinkOS and get instant access to beautiful templates, powerful tools, and everything you need to launch
+          and grow online &mdash; no coding required.
+        </p>
+
+        <ul className="mt-8 space-y-5">
+          {SIGNUP_FEATURES.map(({ Icon, tile, title, sub }) => (
+            <li key={title} className="flex items-center gap-4">
+              <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${tile}`}>
+                <Icon className="h-5 w-5" strokeWidth={1.75} />
+              </span>
+              <div>
+                <p className="flex items-center gap-2 text-[14px] font-bold">
+                  <Check className="h-3.5 w-3.5 text-emerald-400" aria-hidden="true" />
+                  {title}
+                </p>
+                <p className="text-[12px] text-zinc-400">{sub}</p>
+              </div>
+            </li>
+          ))}
+        </ul>
       </div>
 
-      {/* Heading */}
-      <h1 className="mt-5 text-[28px] font-bold tracking-tight leading-tight">
-        Create Your <span className="text-[#3B82F6]">Account</span>
+      <div className="relative mt-12">
+        <div className="flex items-center gap-10">
+          <span className="text-[12px] text-zinc-400">
+            <strong className="block text-xl font-extrabold text-white">10K+</strong>
+            Active Users
+          </span>
+          <span className="text-[12px] text-zinc-400">
+            <strong className="block text-xl font-extrabold text-white">50+</strong>
+            Templates
+          </span>
+          <span className="text-[12px] text-zinc-400">
+            <strong className="block text-xl font-extrabold text-white">4.8/5</strong>
+            User Rating
+          </span>
+        </div>
+
+        <div className="mt-8 flex items-start gap-4">
+          <div className="flex shrink-0 -space-x-2" aria-hidden="true">
+            {['from-blue-500 to-blue-800', 'from-violet-500 to-violet-800', 'from-sky-500 to-sky-800', 'from-teal-500 to-teal-800', 'from-indigo-500 to-indigo-800'].map(
+              (g, i) => (
+                <span
+                  key={i}
+                  className={`flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br ${g} text-[10px] font-bold text-white ring-2 ring-[#060D1A]`}
+                >
+                  {['AH', 'RS', 'MK', 'TS', 'JB'][i]}
+                </span>
+              )
+            )}
+          </div>
+          <p className="text-[13px] leading-relaxed text-zinc-300">
+            &ldquo;LinkOS made it so easy to launch my website. Highly recommended!&rdquo;
+            <span className="mt-1 block font-semibold text-white">&mdash; Arafat H.</span>
+          </p>
+        </div>
+
+        <p className="mt-10 flex items-center gap-2 text-[12px] text-zinc-500">
+          <ShieldCheck className="h-4 w-4 text-[#3B82F6]" aria-hidden="true" />
+          Build a better online presence with LinkOS.
+        </p>
+      </div>
+    </div>
+  );
+
+  /* ---------------- Step 3: You're In! ---------------- */
+
+  if (step === 3) {
+    return (
+      <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-gradient-to-b from-[#0A1830] via-[#081226] to-[#060D1A] px-5 py-12 font-sans text-white">
+        <div
+          className="pointer-events-none absolute -top-24 left-1/2 h-[340px] w-[520px] -translate-x-1/2 rounded-full bg-blue-600/25 blur-[110px]"
+          aria-hidden="true"
+        />
+        <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+          {CONFETTI.map((c, i) => (
+            <span key={i} className={`absolute rounded-[2px] ${c.cls} ${c.color}`} />
+          ))}
+        </div>
+
+        <Link to="/" aria-label="LinkOS home" className="relative mb-8">
+          <LinkOsLogo size="md" tone="light" />
+        </Link>
+
+        <div className="relative">
+          <span className="absolute inset-0 rounded-full bg-blue-500/40 blur-2xl" aria-hidden="true" />
+          <span className="relative flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-[#4F8CFF] to-[#1D4ED8] shadow-[0_0_60px_rgba(37,99,235,0.6)] ring-4 ring-blue-400/30">
+            <Check className="h-11 w-11 text-white" strokeWidth={3} aria-hidden="true" />
+          </span>
+        </div>
+
+        <h1 className="relative mt-6 text-center text-4xl font-extrabold tracking-tight">
+          You&apos;re In! <span aria-hidden="true">🎉</span>
+        </h1>
+        <p className="relative mt-2 max-w-sm text-center text-[14px] leading-relaxed text-zinc-300">
+          Your LinkOS account is ready. Let&apos;s build something amazing together.
+        </p>
+
+        <div className="relative mt-8 w-full max-w-md space-y-2.5">
+          {SUCCESS_FEATURES.map(({ Icon, tile, title, sub }) => (
+            <div key={title} className="flex items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.05] p-4 backdrop-blur-sm">
+              <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${tile}`}>
+                <Icon className="h-5 w-5" strokeWidth={1.75} />
+              </span>
+              <div>
+                <p className="text-[14px] font-bold">{title}</p>
+                <p className="text-[12px] text-zinc-400">{sub}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="relative mt-8 w-full max-w-md space-y-3">
+          <PrimaryButton type="button" onClick={() => navigate('/dashboard/websites/new')}>
+            <span>Go to Dashboard</span>
+            <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          </PrimaryButton>
+          <button
+            type="button"
+            onClick={() => navigate('/templates')}
+            className="flex w-full items-center justify-center rounded-xl border border-white/15 bg-white/[0.04] py-3.5 text-sm font-bold text-white transition-all active:scale-[0.98] hover:bg-white/[0.1]"
+          >
+            Browse Templates
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  /* ---------------- Step 2: Preferences ---------------- */
+
+  if (step === 2) {
+    return (
+      <AuthShell variant="signup" left={brandPanel}>
+        <SignupStepper current={2} />
+
+        <div className="mt-6 md:rounded-3xl md:border md:border-zinc-100 md:bg-white md:p-8 md:shadow-[0_24px_70px_rgba(15,23,42,0.08)]">
+          <h1 className="text-[22px] font-extrabold tracking-tight text-white md:text-zinc-900">
+            Tell us about your preferences
+          </h1>
+          <p className="mt-1 text-[13px] leading-relaxed text-zinc-400 md:text-zinc-500">
+            This helps us show you the most relevant templates, tools, and resources.
+          </p>
+
+          <p className="mt-6 text-[13px] font-bold text-zinc-100 md:text-zinc-800">What best describes you?</p>
+          <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
+            {PERSONAS.map(({ id, Icon, title, sub }) => {
+              const on = persona === id;
+              return (
+                <button
+                  type="button"
+                  key={id}
+                  onClick={() => setPersona(id)}
+                  aria-pressed={on}
+                  className={`flex items-start gap-3 rounded-xl border p-3.5 text-left transition-all ${
+                    on
+                      ? 'border-[#1D7AFC] bg-blue-500/10 ring-1 ring-[#1D7AFC] md:bg-blue-50'
+                      : 'border-white/10 bg-white/[0.04] hover:border-white/25 md:border-zinc-200 md:bg-white md:hover:border-zinc-300'
+                  }`}
+                >
+                  <Icon
+                    className={`mt-0.5 h-5 w-5 shrink-0 ${on ? 'text-[#1D7AFC]' : 'text-zinc-400 md:text-zinc-500'}`}
+                    aria-hidden="true"
+                  />
+                  <span>
+                    <span className="block text-[13px] font-bold text-zinc-100 md:text-zinc-900">{title}</span>
+                    <span className="block text-[11px] leading-snug text-zinc-400 md:text-zinc-500">{sub}</span>
+                  </span>
+                  {on && <Check className="ml-auto h-4 w-4 shrink-0 text-[#1D7AFC]" aria-hidden="true" />}
+                </button>
+              );
+            })}
+          </div>
+
+          <p className="mt-6 text-[13px] font-bold text-zinc-100 md:text-zinc-800">What are you mainly interested in?</p>
+          <p className="text-[11px] text-zinc-500">You can select multiple options.</p>
+          <div className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+            {INTERESTS.map(({ id, Icon, label }) => {
+              const on = interests.includes(id);
+              return (
+                <button
+                  type="button"
+                  key={id}
+                  onClick={() => setInterests(on ? interests.filter((i) => i !== id) : [...interests, id])}
+                  aria-pressed={on}
+                  className={`flex items-center gap-2.5 rounded-xl border p-3 text-left transition-all ${
+                    on
+                      ? 'border-[#1D7AFC] bg-blue-500/10 ring-1 ring-[#1D7AFC] md:bg-blue-50'
+                      : 'border-white/10 bg-white/[0.04] hover:border-white/25 md:border-zinc-200 md:bg-white md:hover:border-zinc-300'
+                  }`}
+                >
+                  <Icon
+                    className={`h-4 w-4 shrink-0 ${on ? 'text-[#1D7AFC]' : 'text-zinc-400 md:text-zinc-500'}`}
+                    aria-hidden="true"
+                  />
+                  <span className="text-[12px] font-semibold leading-tight text-zinc-100 md:text-zinc-800">{label}</span>
+                  {on && <Check className="ml-auto h-3.5 w-3.5 shrink-0 text-[#1D7AFC]" aria-hidden="true" />}
+                </button>
+              );
+            })}
+          </div>
+
+          <label htmlFor="heard-about" className="mt-6 block text-[13px] font-bold text-zinc-100 md:text-zinc-800">
+            How did you hear about us?
+          </label>
+          <select
+            id="heard-about"
+            value={heardAbout}
+            onChange={(e) => setHeardAbout(e.target.value)}
+            className="mt-2 w-full rounded-xl border border-white/10 bg-white/[0.06] px-3 py-3 text-[13px] text-white outline-none transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-500/50 md:border-zinc-200 md:bg-white md:text-zinc-900"
+          >
+            <option value="" className="text-zinc-900">
+              Select an option (optional)
+            </option>
+            {HEARD_OPTIONS.map((o) => (
+              <option key={o} value={o} className="text-zinc-900">
+                {o}
+              </option>
+            ))}
+          </select>
+
+          <div className="mt-7 flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => setStep(1)}
+              className="flex items-center gap-1.5 text-[13px] font-semibold text-zinc-300 transition-colors hover:text-white md:text-zinc-600 md:hover:text-zinc-900"
+            >
+              <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+              Back
+            </button>
+            <PrimaryButton type="button" onClick={() => setStep(3)} disabled={!persona} className="!w-auto px-8">
+              <span>Continue</span>
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </PrimaryButton>
+          </div>
+        </div>
+      </AuthShell>
+    );
+  }
+
+  /* ---------------- Step 1: Account Details ---------------- */
+
+  return (
+    <AuthShell variant="signup" left={brandPanel}>
+      <h1 className="text-center text-[26px] font-extrabold tracking-tight text-white md:text-zinc-900">
+        Create Your Account
       </h1>
-      <p className="mt-1.5 text-[13px] leading-relaxed text-zinc-400 text-pretty">
-        Join thousands of local businesses already growing with LinkOS.
+      <p className="mt-1.5 text-center text-[13px] leading-relaxed text-zinc-400 md:text-zinc-500">
+        Join LinkOS and start building something amazing today.
       </p>
 
-      {/* Form card */}
-      <div className="mt-5 rounded-2xl bg-[#0B1626] border border-white/10 p-5">
+      <div className="mt-5">
+        <SignupStepper current={1} />
+      </div>
+
+      <div className="mt-6 md:rounded-3xl md:border md:border-zinc-100 md:bg-white md:p-8 md:shadow-[0_24px_70px_rgba(15,23,42,0.08)]">
         {error && (
-          <div role="alert" className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-300 text-xs flex items-start gap-2">
-            <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-            <span>
-              {error}
-              {/already registered/i.test(error) && (
-                <>
-                  {' '}
-                  <Link to="/login" className="font-semibold underline underline-offset-2 text-red-200 hover:text-white">
-                    Log In
-                  </Link>
-                </>
-              )}
-            </span>
-          </div>
+          <AuthAlert tone="error">
+            {error}
+            {/already registered/i.test(error) && (
+              <>
+                {' '}
+                <Link to="/login" className="font-semibold text-red-200 underline underline-offset-2 hover:text-white md:text-red-800 md:hover:text-red-900">
+                  Log In
+                </Link>
+              </>
+            )}
+          </AuthAlert>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label htmlFor="signup-name" className="block text-[13px] font-semibold mb-1.5">Full Name</label>
-            <div className="relative">
-              <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 pointer-events-none" />
-              <input
-                id="signup-name"
-                type="text"
-                required
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                placeholder="Enter your full name"
-                className="w-full pl-10 pr-3 py-3 text-[13px] rounded-xl bg-[#0A1420] border border-white/10 placeholder:text-zinc-500 focus:ring-2 focus:ring-blue-500/60 focus:border-blue-500/60 outline-none transition-all"
-              />
-            </div>
-          </div>
+          <TextField
+            id="signup-name"
+            label="Full Name"
+            type="text"
+            required
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+            placeholder="Enter your full name"
+            autoComplete="name"
+            icon={<User className="h-4 w-4" />}
+          />
 
-          <div>
-            <label htmlFor="signup-email" className="block text-[13px] font-semibold mb-1.5">Email or Phone</label>
-            <div className="relative">
-              <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 pointer-events-none" />
-              <input
-                id="signup-email"
-                type="text"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Enter your email or phone"
-                className="w-full pl-10 pr-3 py-3 text-[13px] rounded-xl bg-[#0A1420] border border-white/10 placeholder:text-zinc-500 focus:ring-2 focus:ring-blue-500/60 focus:border-blue-500/60 outline-none transition-all"
-              />
-            </div>
-          </div>
+          <TextField
+            id="signup-username"
+            label="Username"
+            type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="Choose a username"
+            autoComplete="username"
+            icon={<AtSign className="h-4 w-4" />}
+            hint={<p className="mt-1.5 text-[11px] text-zinc-500">This will be your public profile name.</p>}
+          />
 
-          <div>
-            <label htmlFor="signup-password" className="block text-[13px] font-semibold mb-1.5">Password</label>
-            <div className="relative">
-              <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 pointer-events-none" />
-              <input
-                id="signup-password"
-                type={showPassword ? 'text' : 'password'}
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Create a password"
-                className="w-full pl-10 pr-10 py-3 text-[13px] rounded-xl bg-[#0A1420] border border-white/10 placeholder:text-zinc-500 focus:ring-2 focus:ring-blue-500/60 focus:border-blue-500/60 outline-none transition-all"
-              />
+          <TextField
+            id="signup-email"
+            label="Email Address"
+            type="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@example.com"
+            autoComplete="email"
+            icon={<Mail className="h-4 w-4" />}
+          />
+
+          <TextField
+            id="signup-password"
+            label="Password"
+            type={showPassword ? 'text' : 'password'}
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Create a password"
+            autoComplete="new-password"
+            icon={<Lock className="h-4 w-4" />}
+            trailing={
               <button
                 type="button"
                 onClick={() => setShowPassword((v) => !v)}
                 aria-label={showPassword ? 'Hide password' : 'Show password'}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors"
+                className="text-zinc-500 transition-colors hover:text-zinc-300 md:hover:text-zinc-700"
               >
-                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
-            </div>
-            <p className="mt-1.5 text-[11px] text-zinc-500">At least 8 characters with a number and a symbol.</p>
-          </div>
+            }
+            hint={
+              <ul className="mt-2 space-y-1">
+                {pwChecks.map((c) => (
+                  <li
+                    key={c.label}
+                    className={`flex items-center gap-1.5 text-[11px] ${c.ok ? 'text-emerald-500' : 'text-zinc-500'}`}
+                  >
+                    <CheckCircle2 className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                    {c.label}
+                  </li>
+                ))}
+              </ul>
+            }
+          />
 
-          <label className="flex items-start gap-2.5 cursor-pointer select-none">
+          <label className="flex cursor-pointer select-none items-start gap-2.5">
             <input
               type="checkbox"
               checked={agreed}
               onChange={(e) => setAgreed(e.target.checked)}
               required
-              className="w-4 h-4 mt-0.5 rounded accent-[#1D7AFC]"
+              className="mt-0.5 h-4 w-4 rounded accent-[#1D7AFC]"
             />
-            <span className="text-[12px] leading-relaxed text-zinc-300">
+            <span className="text-[12px] leading-relaxed text-zinc-300 md:text-zinc-600">
               I agree to the{' '}
-              <button type="button" className="text-[#3B82F6] font-semibold hover:text-blue-400">Terms of Service</button>
-              {' '}and{' '}
-              <button type="button" className="text-[#3B82F6] font-semibold hover:text-blue-400">Privacy Policy</button>
+              <button type="button" className="font-semibold text-[#1D7AFC] transition-colors hover:text-blue-500">
+                Terms of Service
+              </button>{' '}
+              and{' '}
+              <button type="button" className="font-semibold text-[#1D7AFC] transition-colors hover:text-blue-500">
+                Privacy Policy
+              </button>
             </span>
           </label>
 
-          <button
-            type="submit"
-            disabled={loading || !agreed}
-            className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-[#1D7AFC] hover:bg-blue-500 text-white text-sm font-bold shadow-lg shadow-blue-600/30 transition-all active:scale-[0.98] disabled:opacity-50"
-          >
+          <PrimaryButton type="submit" disabled={loading || !agreed}>
             <span>{loading ? 'Creating account...' : 'Create Account'}</span>
-            <ArrowRight className="w-4 h-4" />
-          </button>
+            <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          </PrimaryButton>
         </form>
 
         <SocialButtons dividerLabel="Or sign up with" onSocial={handleSocial} />
 
-        <p className="text-center text-[13px] text-zinc-400 mt-5">
+        <p className="mt-5 text-center text-[13px] text-zinc-400 md:text-zinc-600">
           Already have an account?{' '}
-          <Link to="/login" className="font-semibold text-[#3B82F6] hover:text-blue-400 transition-colors">
+          <Link to="/login" className="font-semibold text-[#1D7AFC] transition-colors hover:text-blue-500">
             Log In
           </Link>
         </p>
 
+        <SecurityNote />
+
         {import.meta.env.DEV && (
-          <p className="text-center mt-4">
-            <button type="button" onClick={handleDemoLogin} className="text-[11px] text-zinc-500 hover:text-zinc-300 underline underline-offset-2 transition-colors">
+          <p className="mt-4 text-center">
+            <button
+              type="button"
+              onClick={handleDemoLogin}
+              className="text-[11px] text-zinc-500 underline underline-offset-2 transition-colors hover:text-zinc-300 md:text-zinc-400 md:hover:text-zinc-600"
+            >
               Explore demo business
             </button>
           </p>
         )}
-      </div>
-
-      {/* Trust footer */}
-      <div className="mt-6 flex items-center justify-center gap-5 text-[11px] text-zinc-400">
-        <span className="flex items-center gap-1.5"><ShieldCheck className="w-3.5 h-3.5 text-emerald-400" /> Secure</span>
-        <span className="flex items-center gap-1.5"><Users className="w-3.5 h-3.5 text-sky-400" /> Trusted by 10K+</span>
-        <span className="flex items-center gap-1.5"><Zap className="w-3.5 h-3.5 text-amber-400" /> Quick Setup</span>
       </div>
     </AuthShell>
   );
