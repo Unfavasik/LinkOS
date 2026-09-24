@@ -29,6 +29,7 @@ import {
   Headset,
   MessageSquareHeart,
   LifeBuoy,
+  Scale,
 } from 'lucide-react';
 import { LinkOsLogo } from './LinkOsLogo';
 import { StorageService } from '../../lib/storage';
@@ -68,6 +69,7 @@ const COMPANY_ITEMS: MenuItem[] = [
   { label: 'Contact Support', icon: Headset, to: '/help/contact' },
   { label: 'My Support Tickets', icon: LifeBuoy, to: '/help/tickets' },
   { label: 'Feedback', icon: MessageSquareHeart, to: '/help/feedback' },
+  { label: 'Terms & Policies', icon: Scale, to: '/legal' },
 ];
 
 const ACCOUNT_ITEMS_LOGGED_OUT: MenuItem[] = [
@@ -128,6 +130,7 @@ const SectionLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 
 export const MenuDrawer: React.FC<MenuDrawerProps> = ({ open, onClose }) => {
   const admin = useIsAdmin();
+  const loggedIn = Boolean(StorageService.getActiveUser());
 
   return (
     <div
@@ -228,13 +231,13 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({ open, onClose }) => {
             <ArrowRight className="w-5 h-5 text-zinc-400 shrink-0" />
           </button>
 
-          {/* CTA */}
+          {/* CTA — signup for visitors, dashboard for signed-in users */}
           <Link
-            to="/signup"
+            to={loggedIn ? '/dashboard' : '/signup'}
             onClick={onClose}
             className="mt-4 flex items-center justify-center gap-2 w-full py-3.5 rounded-xl bg-[#1D6FF2] hover:bg-[#3B82F6] text-white text-[15px] font-bold transition-colors"
           >
-            Create Your Free Page
+            {loggedIn ? 'Go to Dashboard' : 'Create Your Free Page'}
             <ArrowRight className="w-4.5 h-4.5" />
           </Link>
 
