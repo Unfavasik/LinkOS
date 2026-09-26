@@ -37,6 +37,25 @@ export interface TemplateOverride {
 
 const OVERRIDE_COLS = 'id, name, description, category, theme, accent_color, button_style, font_family, layout, services, cover_url, preview_url, popularity, is_pro, is_active, tags';
 
+/** The database row is an override layer; older rows may only contain an id. */
+export function normalizeTemplateOverride(local: PageTemplate, override?: TemplateOverride): TemplateOverride | undefined {
+  if (!override) return undefined;
+  return {
+    ...override,
+    name: override.name || local.name,
+    description: override.description || local.description,
+    category: override.category || local.category,
+    theme: override.theme || local.theme,
+    accent_color: override.accent_color || local.accent_color,
+    button_style: override.button_style || local.button_style,
+    font_family: override.font_family || local.font_family,
+    layout: override.layout || local.layout,
+    popularity: override.popularity ?? local.popularity,
+    is_pro: override.is_pro ?? local.is_pro,
+    tags: Array.isArray(override.tags) && override.tags.length > 0 ? override.tags : local.tags,
+  };
+}
+
 export async function fetchTemplateOverrides(): Promise<Record<string, TemplateOverride>> {
   if (!isSupabaseConfigured || !supabase) return {};
   const { data, error } = await supabase.from('templates').select(OVERRIDE_COLS);
@@ -58,22 +77,23 @@ export function useTemplateOverrides() {
 
 /** Merge an admin override row on top of the local base template. */
 export function mergeTemplate(local: PageTemplate, o?: TemplateOverride): PageTemplate {
-  if (!o) return local;
+  const override = normalizeTemplateOverride(local, o);
+  if (!override) return local;
   return {
     ...local,
-    name: o.name || local.name,
-    description: o.description || local.description,
-    category: (o.category as PageTemplate['category']) || local.category,
-    theme: (o.theme as PageTemplate['theme']) || local.theme,
-    accent_color: o.accent_color || local.accent_color,
-    button_style: (o.button_style as PageTemplate['button_style']) || local.button_style,
-    font_family: (o.font_family as PageTemplate['font_family']) || local.font_family,
-    layout: (o.layout as PageTemplate['layout']) || local.layout,
-    popularity: o.popularity ?? local.popularity,
-    is_pro: o.is_pro ?? local.is_pro,
-    cover_url: o.cover_url || local.cover_url,
-    preview_url: o.preview_url || local.preview_url,
-    tags: Array.isArray(o.tags) && o.tags.length > 0 ? o.tags : local.tags,
+    name: override.name as string,
+    description: override.description as string,
+    category: override.category as PageTemplate['category'],
+    theme: override.theme as PageTemplate['theme'],
+    accent_color: override.accent_color as string,
+    button_style: override.button_style as PageTemplate['button_style'],
+    font_family: override.font_family as PageTemplate['font_family'],
+    layout: override.layout as PageTemplate['layout'],
+    popularity: override.popularity as number,
+    is_pro: override.is_pro as boolean,
+    cover_url: override.cover_url || local.cover_url,
+    preview_url: override.preview_url || local.preview_url,
+    tags: override.tags as string[],
   };
 }
 

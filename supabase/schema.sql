@@ -361,9 +361,9 @@ insert into public.admins (email, role, is_active, display_name)
 values ('ayatulsekh3037@gmail.com', 'admin', true, 'Ayatul')
 on conflict (email) do nothing;
 
-insert into public.templates (id, name, is_active, popularity)
+insert into public.templates (id, name, category, description, theme, layout, popularity, is_pro, is_active, tags)
 values
-  ('cafe-pro', 'Cafe Pro', true, 90),
-  ('autocare-pro', 'AutoCare Pro', true, 75),
-  ('godi-royal', 'Godi Royal', true, 70)
+  ('cafe-pro', 'Urban Brew Café', 'Food & Cafe', 'Full-featured café & restaurant page — cover photo, menu with discounts, services, business hours, photo gallery and socials.', 'dark', 'cafe', 100, true, true, '["cafe", "restaurant", "menu", "gallery", "Bestseller"]'::jsonb),
+  ('autocare-pro', 'AutoCare Service Centre', 'Services', 'Full-featured car & bike service page — dark garage cover, priced service cards, why-choose-us checklist, business hours, photo gallery and reviews.', 'neutral', 'garage', 100, true, true, '["auto", "car service", "bike service", "garage", "workshop", "Pro"]'::jsonb),
+  ('godi-royal', 'Rofik Godi Centre', 'Retail', 'Premium dark-and-gold page for car seat covers & interior accessories — hero banner, product grid, trust stats, about section and sticky WhatsApp CTA.', 'charcoal', 'godi', 100, true, true, '["car seat covers", "car accessories", "auto", "premium", "dark", "Pro"]'::jsonb)
 on conflict (id) do nothing;
