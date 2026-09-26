@@ -30,7 +30,7 @@
 
 ---
 
-## ৩. ব্যবহৃত টেবিল (১০টি) এবং প্রতিটির কাজ
+## ৩. ব্যবহৃত public table (১৯টি) এবং প্রতিটির কাজ
 
 | টেবিল | কাজ | কে লেখে |
 |---|---|---|
@@ -44,6 +44,15 @@
 | `links` | ইউজারের লিংক | ইউজার |
 | `queue_entries` | কিউ সিস্টেমের এন্ট্রি | ইউজার |
 | `analytics_events` | ভিজিট/ক্লিক ট্র্যাকিং | অ্যাপ অটো |
+| `user_profiles` | Auth user-এর role/display metadata | ইউজার নিজের; owner/admin role নিয়ন্ত্রণ করে |
+| `support_tickets` | ইউজার সাপোর্ট অনুরোধ ও উত্তর | ইউজার, support/admin |
+| `feedback` | রেটিং/ফিডব্যাক ও staff response | ইউজার, support/admin |
+| `guides` | সহায়ক প্রকাশিত কনটেন্ট | অ্যাডমিন |
+| `announcements` | প্রকাশিত ঘোষণা | অ্যাডমিন |
+| `websites` | template দিয়ে বানানো live/draft website | মালিক, admin |
+| `user_notifications` | broadcast বা নির্দিষ্ট user notification | owner/admin |
+| `needle_chats` | user-এর assistant chat data | নিজ user, owner/admin read |
+| `saved_templates` | user-এর saved template তালিকা | নিজ user |
 
 ---
 
@@ -147,6 +156,4 @@ order by c.relname;
 
 ---
 
----
-
-*সর্বশেষ আপডেট: ২০ সেপ্টেম্বর ২০২৬ — টেমপ্লেট ৩টিতে সীমাবদ্ধ, badge + Pro paywall যোগ হওয়ার পর।*
+*সর্বশেষ আপডেট: ২৬ সেপ্টেম্বর ২০২৬ — ১৯টি public table-এ RLS, least-privilege policies, ও role-based access hardening।*

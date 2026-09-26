@@ -21,7 +21,7 @@
 | Admin | Manage LinkOS operational/catalog/content data through active database role checks. |
 | Owner | Exclusive admin-account and invitation management. Browser email allowlists/local caches do not grant admin authority. |
 
-## Changes prepared
+## Changes applied
 
 - A transactional Supabase migration removes legacy policies, enables RLS across the 19 app tables, applies owner/staff/public-only policies, restricts table/default grants, and replaces the broad storage policy with per-user UUID-folder uploads.
 - Database triggers protect profile identity/plan/verification/suspension and role fields; prevent admin self-promotion; constrain public order/queue/ticket/feedback writes; and restrict support-staff edits.
@@ -33,9 +33,9 @@
 - `npm run lint` — passed (TypeScript).
 - `npm run build` — passed. Vite reported an existing `__dirname` configuration warning and an existing large-bundle warning.
 - PostgreSQL migration syntax — accepted by the `pglast` parser; Supabase applied the migration successfully. Live post-check found all 19 tables with RLS enabled, zero sensitive direct anon SELECT grants, zero old broad storage policy, five LinkOS storage policies, and both public views present.
-- Supabase security advisor flagged direct client execution on SECURITY DEFINER functions, two intentionally sanitized public views, and disabled leaked-password protection. A follow-up migration revokes unneeded function EXECUTE grants. The public views are SECURITY DEFINER by design and return only the reviewed public projection; leaked-password protection is a separate Auth setting not changed here.
+- Supabase security advisor initially flagged direct client execution on SECURITY DEFINER functions. The follow-up migration revoked trigger-only/internal RPC execution; live check now reports zero callable trigger functions, zero anon access to internal helpers, and the intentional two anon boolean RPCs. Advisor still reports the two SECURITY DEFINER public views (the safe projection needed for public access), authenticated policy helpers, the boolean-only username/public-profile RPCs, and disabled leaked-password protection. Leaked-password protection is a separate Auth setting and was not changed.
 - `git diff --check` — passed.
 
 ## Deployment gate
 
-The approved migration is live. The user explicitly chose to proceed without deploying the app; accordingly, public website routes using the older direct-table client query may fail until the merged app is deployed. A second migration revokes the unneeded function RPC grants. Public views remain definer-secured with a reviewed field projection to preserve public pages while hiding auth user IDs and owner metadata. The Vercel connector was not enabled.
+Both approved migrations are live. The user explicitly chose to proceed without deploying the app; accordingly, public website routes using the older direct-table client query may fail until the merged app is deployed. Public views remain definer-secured with a reviewed field projection to preserve public pages while hiding auth user IDs and owner UUIDs. The Vercel connector was not enabled.
