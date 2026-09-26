@@ -150,7 +150,6 @@ export function OwnerBadge({ profile }: { profile: Profile }) {
           {profile.email}
         </a>
       )}
-      <p className="text-[10px] font-mono opacity-50 break-all max-w-[300px]">ID: {profile.user_id}</p>
     </div>
   );
 }
@@ -171,9 +170,6 @@ export function SiteFooter({ profile }: { profile?: Profile }) {
               {profile.email}
             </a>
           )}
-          <p className="text-[10px] font-mono text-zinc-400 break-all max-w-[300px]">
-            ID: {profile.user_id}
-          </p>
         </div>
       )}
       <Link

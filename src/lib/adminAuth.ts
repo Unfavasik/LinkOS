@@ -11,197 +11,49 @@ import {
 export type { AdminRecord };
 export { clearAdminCache };
 
-let supabaseAdminEmailsCache: Set<string> = new Set();
-
-// Hydrate from localStorage on boot
-try {
-  const stored = localStorage.getItem('linkos_supabase_admins');
-  if (stored) {
-    const list: string[] = JSON.parse(stored);
-    supabaseAdminEmailsCache = new Set(list.map((e) => e.toLowerCase().trim()));
-  }
-} catch {}
-
 /**
- * Designated Super Admins / System Owners who always have full access.
- */
-export const ROOT_OWNER_EMAILS = [
-  'ayatulsekh3037@gmail.com',
-  'admin@linkos.dev',
-  'owner@linkos.dev',
-  'admin@linkos.in',
-  'ayatulsekh@gmail.com',
-];
-
-/**
- * Dynamically fetches all active admin emails from Supabase `admins` table
- * and updates the local cache.
- */
-export async function syncSupabaseAdminEmails(): Promise<string[]> {
-  if (!isSupabaseConfigured || !supabase) return Array.from(supabaseAdminEmailsCache);
-  try {
-    const { data, error } = await supabase
-      .from('admins')
-      .select('email, role, is_active')
-      .eq('is_active', true);
-    
-    if (!error && Array.isArray(data)) {
-      const emailList: string[] = [];
-      data.forEach((row) => {
-        if (row.email) {
-          const clean = row.email.toLowerCase().trim();
-          emailList.push(clean);
-          supabaseAdminEmailsCache.add(clean);
-        }
-      });
-      localStorage.setItem('linkos_supabase_admins', JSON.stringify(Array.from(supabaseAdminEmailsCache)));
-      return emailList;
-    }
-  } catch (err) {
-    console.log('[v0] syncSupabaseAdminEmails warning:', err);
-  }
-  return Array.from(supabaseAdminEmailsCache);
-}
-
-// Automatically trigger sync on module initialization
-if (isSupabaseConfigured && supabase) {
-  syncSupabaseAdminEmails().catch(() => {});
-}
-
-export function isKnownAdminEmail(email?: string | null): boolean {
-  if (!email) return false;
-  const clean = email.toLowerCase().trim();
-  if (ROOT_OWNER_EMAILS.includes(clean)) return true;
-  if (supabaseAdminEmailsCache.has(clean)) return true;
-  // Exact matches only. Substring/prefix rules (e.g. includes('ayatulsekh'),
-  // startsWith('admin@')) previously let lookalike addresses such as
-  // `aaayatulsekh3037@gmail.com` gain owner access and self-insert into the
-  // admins table.
-  return false;
-}
-
-/**
- * Verify against the Supabase `admins` table or known admin credentials whether
- * an email is an active admin.
+ * Verify whether an email maps to an active record in the Supabase `admins` table.
  */
 export async function verifyAdmin(
-  email: string | null | undefined,
-  userId?: string | null
+  _email: string | null | undefined,
+  _userId?: string | null
 ): Promise<AdminRecord | null> {
-  if (!email) {
-    // Check if active user exists
-    const current = StorageService.getActiveUser();
-    if (current?.email) {
-      email = current.email;
-      userId = userId || current.id;
-    } else {
+  // Fail closed. Never derive admin authority from client-supplied identity or
+  // localStorage; use the email claim from the verified Supabase session.
+  if (!isSupabaseConfigured || !supabase) {
+    setCachedAdminRecord(null);
+    return null;
+  }
+  try {
+    const queryPromise = (async (): Promise<AdminRecord | null> => {
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      const authenticatedEmail = authData.user?.email?.toLowerCase().trim();
+      if (authError || !authData.user || !authenticatedEmail) return null;
+
+      const { data, error } = await supabase
+        .from('admins')
+        .select('id, email, role, is_active, display_name, avatar_url')
+        .eq('email', authenticatedEmail)
+        .eq('is_active', true)
+        .maybeSingle();
+      if (error) throw error;
+      return (data as AdminRecord | null) ?? (await redeemInvite(authenticatedEmail));
+    })();
+    const timeoutPromise = new Promise<'timeout'>((resolve) =>
+      setTimeout(() => resolve('timeout'), 4500)
+    );
+    const result = await Promise.race([queryPromise, timeoutPromise]);
+    if (result === 'timeout') {
+      setCachedAdminRecord(null);
       return null;
     }
+    setCachedAdminRecord(result);
+    return result;
+  } catch (error) {
+    console.log('[v0] Supabase admin lookup failed:', error);
+    setCachedAdminRecord(null);
+    return null;
   }
-  const cleanEmail = email.toLowerCase().trim();
-
-  // If already cached in memory for this session, return it
-  const cached = getCachedAdminRecord();
-  if (cached && cached.email?.toLowerCase() === cleanEmail) {
-    return cached;
-  }
-
-  // 1. Check if email is in the designated Super Admin / Owner list (INSTANT ACCESS)
-  if (isKnownAdminEmail(cleanEmail)) {
-    const ownerRecord: AdminRecord = {
-      id: userId || 'admin_root_owner',
-      email: cleanEmail,
-      role: 'owner',
-      is_active: true,
-      display_name: cleanEmail.split('@')[0] || 'Super Admin',
-      avatar_url: '/images/default-avatar.png',
-    };
-
-    setCachedAdminRecord(ownerRecord);
-
-    // Non-blocking background sync with Supabase
-    if (isSupabaseConfigured && supabase) {
-      supabase.from('admins').upsert(
-        {
-          email: cleanEmail,
-          role: 'owner',
-          is_active: true,
-          display_name: ownerRecord.display_name,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: 'email' }
-      ).then(
-        () => {},
-        () => {}
-      );
-    }
-
-    return ownerRecord;
-  }
-
-  // 2. Check Supabase admins table with 2.5s timeout safety
-  const cols = 'id, email, role, is_active, display_name, avatar_url';
-  if (isSupabaseConfigured && supabase) {
-    try {
-      const queryPromise = (async () => {
-        const byEmail = await supabase
-          .from('admins')
-          .select(cols)
-          .eq('email', cleanEmail)
-          .eq('is_active', true)
-          .maybeSingle();
-        let data = (byEmail.data as AdminRecord) ?? null;
-
-        if (!data && userId) {
-          const byId = await supabase
-            .from('admins')
-            .select(cols)
-            .eq('id', userId)
-            .eq('is_active', true)
-            .maybeSingle();
-          data = (byId.data as AdminRecord) ?? null;
-        }
-
-        // Check for pending invite
-        return data ?? (await redeemInvite(cleanEmail));
-      })();
-
-      // A completed query is authoritative when Supabase is reachable — only a
-      // timeout falls through to the local-storage fallback below.
-      const timeoutPromise = new Promise<'timeout'>((resolve) =>
-        setTimeout(() => resolve('timeout'), 2500)
-      );
-      const result = await Promise.race([queryPromise, timeoutPromise]);
-
-      if (result !== 'timeout') {
-        setCachedAdminRecord(result as AdminRecord);
-        return result as AdminRecord;
-      }
-    } catch (e) {
-      console.log('[v0] Supabase admin lookup failed:', e);
-    }
-  }
-
-  // 3. Check active user role in local storage
-  const localUser = StorageService.getActiveUser();
-  if (localUser && (localUser.email?.toLowerCase() === cleanEmail || localUser.id === userId)) {
-    const profile = StorageService.findLocalProfile(localUser);
-    if (profile && (profile.role === 'owner' || profile.role === 'admin' || profile.role === 'support')) {
-      const localAdmin: AdminRecord = {
-        id: localUser.id,
-        email: cleanEmail,
-        role: profile.role,
-        is_active: true,
-        display_name: profile.business_name || cleanEmail.split('@')[0],
-        avatar_url: profile.avatar_url,
-      };
-      setCachedAdminRecord(localAdmin);
-      return localAdmin;
-    }
-  }
-
-  setCachedAdminRecord(null);
-  return null;
 }
 
 /**
@@ -210,43 +62,16 @@ export async function verifyAdmin(
  * admin record, or null when there is no pending invite.
  */
 async function redeemInvite(email: string): Promise<AdminRecord | null> {
-  if (!supabase) return null;
-  const invite = await supabase
-    .from('admin_invites')
-    .select('id, role')
-    .eq('email', email)
-    .eq('status', 'pending')
-    .maybeSingle();
-  if (invite.error || !invite.data) {
-    if (invite.error) console.log('[v0] invite lookup:', invite.error.message);
+  if (!supabase || !isSupabaseConfigured) return null;
+  const { data, error } = await supabase.rpc('redeem_linkos_admin_invite');
+  if (error || !data) {
+    if (error) console.log('[v0] invite redemption:', error.message);
     return null;
   }
-
-  const { id: inviteId, role } = invite.data as { id: string; role: string };
-  const inserted = await supabase
-    .from('admins')
-    .insert({ email, role, is_active: true })
-    .select('id, email, role, is_active, display_name, avatar_url')
-    .maybeSingle();
-  if (inserted.error || !inserted.data) {
-    // Most likely the row already exists (e.g. re-invite race) — re-read it.
-    const existing = await supabase
-      .from('admins')
-      .select('id, email, role, is_active, display_name, avatar_url')
-      .eq('email', email)
-      .eq('is_active', true)
-      .maybeSingle();
-    if (existing.data) {
-      await supabase.from('admin_invites').update({ status: 'accepted' }).eq('id', inviteId);
-      return existing.data as AdminRecord;
-    }
-    console.log('[v0] invite redemption failed:', inserted.error?.message);
-    return null;
-  }
-
-  await supabase.from('admin_invites').update({ status: 'accepted' }).eq('id', inviteId);
-  console.log('[v0] admin invite redeemed for', email, 'with role', role);
-  return inserted.data as AdminRecord;
+  const record = (Array.isArray(data) ? data[0] : data) as AdminRecord | undefined;
+  if (!record) return null;
+  console.log('[v0] admin invite redeemed for', email, 'with role', record.role);
+  return record;
 }
 
 export function getCachedAdmin(): AdminRecord | null {
@@ -276,10 +101,8 @@ export async function updateAdminProfile(
   if (!isSupabaseConfigured || !supabase || !admin.email) return null;
   const { data, error } = await supabase
     .from('admins')
-    .upsert(
-      { email: admin.email.toLowerCase().trim(), ...patch, updated_at: new Date().toISOString() },
-      { onConflict: 'email' },
-    )
+    .update({ ...patch, updated_at: new Date().toISOString() })
+    .eq('email', admin.email.toLowerCase().trim())
     .select('id, email, role, is_active, display_name, avatar_url')
     .maybeSingle();
   if (error) {
@@ -292,7 +115,7 @@ export async function updateAdminProfile(
 
 /** Reactive flag for nav UI: true when the active user is a verified admin. */
 export function useIsAdmin(): boolean {
-  const [isAdmin, setIsAdmin] = useState<boolean>(() => getCachedAdmin() !== null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     let alive = true;

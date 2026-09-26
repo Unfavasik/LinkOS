@@ -349,12 +349,11 @@ export const StorageService = {
 
     if (isSupabaseConfigured && supabase) {
       try {
-        let query = supabase.from('profiles').select('id').ilike('username', clean);
-        if (currentProfileId) {
-          query = query.neq('id', currentProfileId);
-        }
-        const { data } = await query;
-        if (data && data.length > 0) return false;
+        const { data, error } = await supabase.rpc('is_linkos_username_available', {
+          p_username: clean,
+          p_current_profile_id: currentProfileId ?? null,
+        });
+        if (!error && typeof data === 'boolean') return data;
       } catch {
         // Fallback to local
       }
@@ -877,14 +876,10 @@ export const StorageService = {
   async createOrder(order: Order): Promise<Order> {
     if (isSupabaseConfigured && supabase) {
       try {
-        const { data, error } = await supabase
-          .from('orders')
-          .insert(order)
-          .select()
-          .single();
-        if (!error && data) {
-          this.saveOrderLocal(data as Order);
-          return data as Order;
+        const { error } = await supabase.from('orders').insert(order);
+        if (!error) {
+          this.saveOrderLocal(order);
+          return order;
         }
       } catch {}
     }
@@ -999,9 +994,11 @@ export const StorageService = {
     if (isSupabaseConfigured && supabase) {
       try {
         const targetBucket = bucket === 'avatars' ? 'logos' : bucket;
+        const { data: authData, error: authError } = await supabase.auth.getUser();
+        if (authError || !authData.user) throw new Error('Sign in before uploading media.');
         const fileExt = stored.name.split('.').pop();
         const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
-        const filePath = `${fileName}`;
+        const filePath = `${authData.user.id}/${fileName}`;
 
         await uploadWithProgress(targetBucket, filePath, stored, onProgress ? (p) => onProgress(15 + Math.round(p * 0.8)) : undefined);
         const { data } = supabase.storage.from(targetBucket).getPublicUrl(filePath);
@@ -1118,11 +1115,14 @@ export const StorageService = {
     if (isSupabaseConfigured && supabase) {
       try {
         const targetBucket = bucket === 'avatars' ? 'logos' : bucket;
+        const { data: authData, error: authError } = await supabase.auth.getUser();
+        if (authError || !authData.user) throw new Error('Sign in before uploading media.');
         const fileExt = stored.name.split('.').pop();
         const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
+        const filePath = `${authData.user.id}/${fileName}`;
 
-        await uploadWithProgress(targetBucket, fileName, stored, onProgress ? (p) => onProgress(50 + Math.round(p * 0.5)) : undefined, stored.type);
-        const { data } = supabase.storage.from(targetBucket).getPublicUrl(fileName);
+        await uploadWithProgress(targetBucket, filePath, stored, onProgress ? (p) => onProgress(50 + Math.round(p * 0.5)) : undefined, stored.type);
+        const { data } = supabase.storage.from(targetBucket).getPublicUrl(filePath);
         if (data?.publicUrl) {
           onProgress?.(100);
           return data.publicUrl;

@@ -216,12 +216,12 @@ export async function replyToTicket(
           replies?: TicketReply[];
         };
         const replies = [...(Array.isArray(meta.replies) ? meta.replies : []), entry];
+        const isUserReply = reply.by_role === 'user';
         const { data, error } = await supabase
           .from('support_tickets')
           .update({
             metadata: { ...meta, replies },
-            admin_response: entry.message,
-            status: 'in_progress',
+            ...(isUserReply ? { status: 'open' } : { admin_response: entry.message, status: 'in_progress' }),
             updated_at: entry.created_at,
           })
           .eq('id', (existing as { id: string }).id)

@@ -32,7 +32,7 @@ const normalizeStatus = (s: unknown): 'draft' | 'live' => (s === 'live' ? 'live'
 function toRecord(row: Record<string, unknown>): WebsiteRecord {
   return {
     id: row.id as string,
-    owner_id: row.owner_id as string,
+    owner_id: (row.owner_id as string) || '',
     template_id: (row.template_id as string) || '',
     name: (row.name as string) || 'My Website',
     slug: (row.slug as string) || '',
@@ -78,50 +78,27 @@ function getLocalWebsite(id: string): WebsiteRecord | null {
   return readLocalWebsites().find((r) => r.id === id) ?? null;
 }
 
-/** websites.owner_id is a uuid column, but local session ids (demo login)
- *  are plain strings like "user_anant_1". Derive a stable uuid from the
- *  local id so ownership stays consistent across sessions. */
+/** Resolve the current identity from the trusted Supabase session. The local
+ *  deterministic owner id is retained only for an offline/demo-only build. */
 async function localOwnerUuid(localId: string): Promise<string> {
   const data = new TextEncoder().encode(`linkos-website-owner:${localId}`);
   const digest = new Uint8Array(await crypto.subtle.digest('SHA-1', data));
-  digest[6] = (digest[6] & 0x0f) | 0x50; // uuid version 5
-  digest[8] = (digest[8] & 0x3f) | 0x80; // RFC 4122 variant
+  digest[6] = (digest[6] & 0x0f) | 0x50;
+  digest[8] = (digest[8] & 0x3f) | 0x80;
   const hex = Array.from(digest, (b) => b.toString(16).padStart(2, '0')).join('');
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
 }
-
 async function currentUserId(): Promise<string | null> {
-  // The app keys all Supabase rows (profiles, products) by the local
-  // active-user id — real logins store the auth uid there, while demo
-  // sessions have no auth token at all. Prefer the local id so website
-  // ownership matches the rest of the user's data.
-  const active = StorageService.getActiveUser();
-  if (active?.id) {
-    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(active.id)
-      ? active.id
-      : localOwnerUuid(active.id);
+  if (isSupabaseConfigured && supabase) {
+    const { data, error } = await supabase.auth.getUser();
+    if (error) return null;
+    return data.user?.id ?? null;
   }
-  if (!isSupabaseConfigured || !supabase) return null;
-  const { data } = await supabase.auth.getUser();
-  return data?.user?.id ?? null;
-}
-
-/** The signed-in user's email, used to stamp website ownership. */
-async function currentUserEmail(): Promise<string | null> {
   const active = StorageService.getActiveUser();
-  if (active?.email) return active.email;
-  if (!isSupabaseConfigured || !supabase) return null;
-  const { data } = await supabase.auth.getUser();
-  return data?.user?.email ?? null;
+  if (!active?.id) return null;
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(active.id)) return active.id;
+  return localOwnerUuid(active.id);
 }
-
-/** Stamp the website's content snapshot with its owner's id and email so
- *  ownership is readable straight from the websites table row. */
-async function ownershipStamp(uid: string): Promise<Record<string, unknown>> {
-  const email = await currentUserEmail();
-  return email ? { owner_id: uid, owner_email: email } : { owner_id: uid };
-}
-
 /** Build a Profile-shaped content snapshot for a new website.
  *  Design (theme, layout, fonts) comes from the template; all business
  *  content is prefilled from the user's existing My Page profile so the
@@ -173,11 +150,11 @@ export function slugify(base: string): string {
   );
 }
 
-/** Is this slug free on the public /site/ namespace? */
+/** Is this slug free on the /site/ namespace? Requires a signed-in builder. */
 export async function isSlugAvailable(slug: string): Promise<boolean> {
   if (!isSupabaseConfigured || !supabase) return true;
-  const { data } = await supabase.from('websites').select('id').eq('slug', slug).maybeSingle();
-  return !data;
+  const { data } = await supabase.rpc('is_linkos_slug_available', { p_slug: slug });
+  return data === true;
 }
 
 /** Suggest up to 3 available slugs derived from the user's chosen name,
@@ -200,12 +177,8 @@ async function uniqueSlug(base: string): Promise<string> {
   if (!isSupabaseConfigured || !supabase) return `${clean}-${Date.now().toString(36)}`;
   let candidate = clean;
   for (let i = 0; i < 20; i++) {
-    const { data } = await supabase
-      .from('websites')
-      .select('id')
-      .eq('slug', candidate)
-      .maybeSingle();
-    if (!data) return candidate;
+    const { data, error } = await supabase.rpc('is_linkos_slug_available', { p_slug: candidate });
+    if (!error && data === true) return candidate;
     candidate = `${clean}-${Math.random().toString(36).slice(2, 6)}`;
   }
   return `${clean}-${Date.now().toString(36)}`;
@@ -246,7 +219,7 @@ export async function fetchWebsite(id: string): Promise<WebsiteRecord | null> {
 export async function fetchLiveWebsiteBySlug(slug: string): Promise<WebsiteRecord | null> {
   if (!isSupabaseConfigured || !supabase) return null;
   const { data, error } = await supabase
-    .from('websites')
+    .from('public_websites')
     .select('*')
     .eq('slug', slug)
     .eq('status', 'live')
@@ -270,10 +243,9 @@ export async function createWebsiteFromContent(
   if (!uid || !tpl) return null;
   const slug = await uniqueSlug(preferredSlug?.trim() || name || tpl.name);
   if (!isSupabaseConfigured || !supabase) return null;
-  const stamp = await ownershipStamp(uid);
   const { data, error } = await supabase
     .from('websites')
-    .insert({ owner_id: uid, template_id: tpl.id, name: name.trim() || tpl.name, slug, status: 'live', content: { ...content, ...stamp } })
+    .insert({ owner_id: uid, template_id: tpl.id, name: name.trim() || tpl.name, slug, status: 'live', content })
     .select('*')
     .maybeSingle();
   if (error || !data) {
@@ -287,7 +259,7 @@ export async function createWebsiteFromContent(
       name: name.trim() || tpl.name,
       slug,
       status: 'live',
-      content: { ...content, ...stamp },
+      content,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
@@ -309,10 +281,9 @@ export async function createWebsiteFromTemplate(
   // starts with the same business data the My Page editor shows.
   const profile = await StorageService.getCurrentUserProfile();
   const content = templateContentSnapshot(tpl, name || tpl.name, profile);
-  const stamp = await ownershipStamp(uid);
   const { data, error } = await supabase
     .from('websites')
-    .insert({ owner_id: uid, template_id: tpl.id, name: name || tpl.name, slug, status: 'draft', content: { ...content, ...stamp } })
+    .insert({ owner_id: uid, template_id: tpl.id, name: name || tpl.name, slug, status: 'draft', content })
     .select('*')
     .maybeSingle();
   if (error || !data) {

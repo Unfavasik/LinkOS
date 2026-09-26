@@ -37,7 +37,7 @@ import { StorageService } from '../../lib/storage';
 import { Profile } from '../../types';
 import { ShareModal } from '../profile/ShareModal';
 import { SuspendedAccountPage } from '../../pages/SuspendedAccountPage';
-import { useIsAdmin, isKnownAdminEmail } from '../../lib/adminAuth';
+import { useIsAdmin } from '../../lib/adminAuth';
 
 import { loadPublishedAnnouncements, type Announcement } from '../../lib/announcements';
 import { useUserNotifications } from '../../lib/userNotifications';
@@ -60,7 +60,7 @@ export const DashboardLayout: React.FC = () => {
     revalidateOnFocus: false,
   });
   const latestAnnouncement: Announcement | undefined = announcements?.find((a) => a.published);
-  const isAdmin = isVerifiedAdmin || isKnownAdminEmail(profile?.email) || profile?.role === 'owner' || profile?.role === 'admin';
+  const isAdmin = isVerifiedAdmin;
 
   useEffect(() => {
     let isMounted = true;

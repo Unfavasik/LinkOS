@@ -59,7 +59,7 @@ import { EditProfilePage } from './pages/dashboard/EditProfilePage';
 import { NeedleAssistantPage } from './pages/dashboard/NeedleAssistantPage';
 import { supabase, isSupabaseConfigured } from './lib/supabase';
 import { StorageService } from './lib/storage';
-import { verifyAdmin, isKnownAdminEmail, syncSupabaseAdminEmails } from './lib/adminAuth';
+import { verifyAdmin } from './lib/adminAuth';
 
 /**
  * SPA navigations preserve the previous scroll offset, which can make a
@@ -81,9 +81,6 @@ const AuthSynchronizer: React.FC = () => {
   React.useEffect(() => {
     if (!isSupabaseConfigured || !supabase) return;
 
-    // Load and sync admin emails dynamically from Supabase admins table
-    syncSupabaseAdminEmails().catch(() => {});
-
     // Check existing session on load
     supabase.auth.getSession().then(({ data }) => {
       if (data?.session?.user) {
@@ -93,9 +90,7 @@ const AuthSynchronizer: React.FC = () => {
           id: u.id,
           email,
         });
-        if (isKnownAdminEmail(email)) {
-          verifyAdmin(email, u.id);
-        }
+        void verifyAdmin(email, u.id);
       }
     });
 
@@ -107,9 +102,9 @@ const AuthSynchronizer: React.FC = () => {
           id: u.id,
           email,
         });
-        if (isKnownAdminEmail(email)) {
-          verifyAdmin(email, u.id);
-        }
+        // Supabase warns against starting another auth-backed request inline
+        // inside onAuthStateChange. Defer the role lookup to the next turn.
+        window.setTimeout(() => void verifyAdmin(email, u.id), 0);
       }
     });
 

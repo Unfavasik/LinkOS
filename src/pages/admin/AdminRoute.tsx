@@ -1,38 +1,32 @@
 import React, { useEffect, useState } from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { StorageService } from '../../lib/storage';
-import { verifyAdmin, getCachedAdmin, isKnownAdminEmail } from '../../lib/adminAuth';
+import { verifyAdmin } from '../../lib/adminAuth';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { AdminLayout } from './AdminLayout';
 
-/**
- * Guards the admin panel: allows verified admins and owner emails.
- * Handles instant cached entry, Supabase session auto-hydration, and failsafe timeout.
- */
+/** Guards the admin panel using a fresh active-admin lookup for the Supabase session. */
 export const AdminRoute: React.FC = () => {
-  const [status, setStatus] = useState<'checking' | 'allowed' | 'denied'>(() => {
-    const user = StorageService.getActiveUser();
-    const cached = getCachedAdmin();
-    // The cached admin must belong to the signed-in user — a stale record
-    // left behind by a previous account must never grant instant entry.
-    if (cached && user && cached.email.toLowerCase() === user.email?.toLowerCase()) {
-      return 'allowed';
-    }
-    // Offline mode only: known owner emails get instant entry. When Supabase
-    // is configured, verification must go through the `admins` table.
-    if (user?.email && isKnownAdminEmail(user.email) && !isSupabaseConfigured) return 'allowed';
-    return 'checking';
-  });
+  const [status, setStatus] = useState<'checking' | 'allowed' | 'denied'>('checking');
+
+  useEffect(() => {
+    if (!supabase) return;
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
+      setStatus('checking');
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
   useEffect(() => {
     if (status !== 'checking') return;
     let alive = true;
 
     const checkAccess = async () => {
-      // 1. Check local active user
+      // Restore the local user shape from the Supabase session when needed.
       let user = StorageService.getActiveUser();
 
-      // 2. If no local user, check Supabase session
+      // A browser-local user alone is not authentication; verification below
+      // always derives identity from the Supabase session.
       if (!user && isSupabaseConfigured && supabase) {
         try {
           const { data } = await supabase.auth.getSession();
@@ -48,15 +42,8 @@ export const AdminRoute: React.FC = () => {
         }
       }
 
-      // 3. If still no user, check fallback owner
       if (!user) {
-        // If on dev/demo or known owner context
         if (alive) setStatus('denied');
-        return;
-      }
-
-      if (!isSupabaseConfigured && isKnownAdminEmail(user.email)) {
-        if (alive) setStatus('allowed');
         return;
       }
 
@@ -71,14 +58,9 @@ export const AdminRoute: React.FC = () => {
     // Safety timeout: never stay stuck on loading for more than 2 seconds
     const timeout = setTimeout(() => {
       if (alive && status === 'checking') {
-        const u = StorageService.getActiveUser();
-        if (u?.email && isKnownAdminEmail(u.email) && !isSupabaseConfigured) {
-          setStatus('allowed');
-        } else {
-          setStatus('denied');
-        }
+        setStatus('denied');
       }
-    }, 2000);
+    }, 5000);
 
     return () => {
       alive = false;
