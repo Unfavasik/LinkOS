@@ -251,11 +251,6 @@ export const SignupPage: React.FC = () => {
     }
   };
 
-  const handleDemoLogin = () => {
-    StorageService.loginDemoUser();
-    navigate('/dashboard');
-  };
-
   const handleSocial = (provider: SocialProvider) => {
     if (isSupabaseConfigured && supabase) {
       supabase.auth
@@ -670,17 +665,6 @@ export const SignupPage: React.FC = () => {
 
         <SecurityNote />
 
-        {import.meta.env.DEV && (
-          <p className="mt-4 text-center">
-            <button
-              type="button"
-              onClick={handleDemoLogin}
-              className="text-[11px] text-zinc-500 underline underline-offset-2 transition-colors hover:text-zinc-300 md:text-zinc-400 md:hover:text-zinc-600"
-            >
-              Explore demo business
-            </button>
-          </p>
-        )}
       </div>
     </AuthShell>
   );

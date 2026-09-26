@@ -99,12 +99,6 @@ export const LoginPage: React.FC = () => {
         });
 
         if (authError) {
-          const isDemo = cleanEmail.includes('urbanbrew') || cleanEmail === 'anant';
-          if (isDemo) {
-            StorageService.loginDemoUser();
-            navigate('/dashboard');
-            return;
-          }
           throw authError;
         }
 
@@ -165,11 +159,6 @@ export const LoginPage: React.FC = () => {
     } else {
       setInfo('Password reset works once you are online.');
     }
-  };
-
-  const handleDemoLogin = () => {
-    StorageService.loginDemoUser();
-    navigate('/dashboard');
   };
 
   const handleSocial = async (provider: SocialProvider) => {
@@ -379,15 +368,6 @@ export const LoginPage: React.FC = () => {
           <span>Help Center</span>
         </div>
 
-        <p className="mt-4 text-center">
-          <button
-            type="button"
-            onClick={handleDemoLogin}
-            className="text-[11px] text-zinc-500 underline underline-offset-2 transition-colors hover:text-zinc-300 md:text-zinc-400 md:hover:text-zinc-600"
-          >
-            Explore demo business
-          </button>
-        </p>
       </div>
     </AuthShell>
   );

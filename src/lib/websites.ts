@@ -43,61 +43,12 @@ function toRecord(row: Record<string, unknown>): WebsiteRecord {
   };
 }
 
-/* ---- Local fallback store -------------------------------------------------
- * Sessions without a Supabase auth token (demo login) are rejected by the
- * websites RLS policies, and Supabase may be unreachable entirely. Mirror
- * the StorageService convention: try Supabase first, keep a local copy so
- * the feature always works. */
-
-const LOCAL_WEBSITES_KEY = 'linkos_websites_local';
-
-function readLocalWebsites(): WebsiteRecord[] {
-  try {
-    const raw = localStorage.getItem(LOCAL_WEBSITES_KEY);
-    return raw ? (JSON.parse(raw) as WebsiteRecord[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-function writeLocalWebsites(records: WebsiteRecord[]) {
-  try {
-    localStorage.setItem(LOCAL_WEBSITES_KEY, JSON.stringify(records));
-  } catch {
-    /* storage full or unavailable — non-fatal */
-  }
-}
-
-function upsertLocalWebsite(record: WebsiteRecord) {
-  const all = readLocalWebsites().filter((r) => r.id !== record.id);
-  all.unshift(record);
-  writeLocalWebsites(all);
-}
-
-function getLocalWebsite(id: string): WebsiteRecord | null {
-  return readLocalWebsites().find((r) => r.id === id) ?? null;
-}
-
-/** Resolve the current identity from the trusted Supabase session. The local
- *  deterministic owner id is retained only for an offline/demo-only build. */
-async function localOwnerUuid(localId: string): Promise<string> {
-  const data = new TextEncoder().encode(`linkos-website-owner:${localId}`);
-  const digest = new Uint8Array(await crypto.subtle.digest('SHA-1', data));
-  digest[6] = (digest[6] & 0x0f) | 0x50;
-  digest[8] = (digest[8] & 0x3f) | 0x80;
-  const hex = Array.from(digest, (b) => b.toString(16).padStart(2, '0')).join('');
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
-}
+/** Website ownership always comes from the authenticated Supabase session. */
 async function currentUserId(): Promise<string | null> {
-  if (isSupabaseConfigured && supabase) {
-    const { data, error } = await supabase.auth.getUser();
-    if (error) return null;
-    return data.user?.id ?? null;
-  }
-  const active = StorageService.getActiveUser();
-  if (!active?.id) return null;
-  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(active.id)) return active.id;
-  return localOwnerUuid(active.id);
+  if (!isSupabaseConfigured || !supabase) return null;
+  const { data, error } = await supabase.auth.getUser();
+  if (error) return null;
+  return data.user?.id ?? null;
 }
 /** Build a Profile-shaped content snapshot for a new website.
  *  Design (theme, layout, fonts) comes from the template; all business
@@ -186,8 +137,7 @@ async function uniqueSlug(base: string): Promise<string> {
 
 export async function fetchMyWebsites(): Promise<WebsiteRecord[]> {
   const uid = await currentUserId();
-  if (!uid) return [];
-  if (!isSupabaseConfigured || !supabase) return [];
+  if (!uid || !supabase) return [];
   const { data, error } = await supabase
     .from('websites')
     .select('*')
@@ -195,21 +145,15 @@ export async function fetchMyWebsites(): Promise<WebsiteRecord[]> {
     .order('updated_at', { ascending: false });
   if (error) {
     console.log('[v0] fetchMyWebsites failed:', error.message);
-    // Fall back to the local store so demo sessions still see their sites.
-    return readLocalWebsites().filter((r) => r.owner_id === uid);
+    return [];
   }
-  const remote = (data ?? []).map(toRecord);
-  const remoteIds = new Set(remote.map((r) => r.id));
-  const localOnly = readLocalWebsites().filter((r) => r.owner_id === uid && !remoteIds.has(r.id));
-  return [...remote, ...localOnly];
+  return (data ?? []).map(toRecord);
 }
 
 export async function fetchWebsite(id: string): Promise<WebsiteRecord | null> {
-  const local = getLocalWebsite(id);
-  if (!isSupabaseConfigured || !supabase) return local;
+  if (!isSupabaseConfigured || !supabase || !(await currentUserId())) return null;
   const { data, error } = await supabase.from('websites').select('*').eq('id', id).maybeSingle();
   if (error || !data) {
-    if (local) return local;
     console.log('[v0] fetchWebsite failed:', error?.message);
     return null;
   }
@@ -240,31 +184,16 @@ export async function createWebsiteFromContent(
 ): Promise<WebsiteRecord | null> {
   const uid = await currentUserId();
   const tpl = getTemplateById(templateId);
-  if (!uid || !tpl) return null;
+  if (!uid || !tpl || !supabase) return null;
   const slug = await uniqueSlug(preferredSlug?.trim() || name || tpl.name);
-  if (!isSupabaseConfigured || !supabase) return null;
   const { data, error } = await supabase
     .from('websites')
     .insert({ owner_id: uid, template_id: tpl.id, name: name.trim() || tpl.name, slug, status: 'live', content })
     .select('*')
     .maybeSingle();
   if (error || !data) {
-    // Demo sessions have no auth token, so RLS rejects the insert. Keep the
-    // site in the local store so the flow still completes end to end.
-    console.log('[v0] createWebsiteFromContent falling back to local store:', error?.message);
-    const record: WebsiteRecord = {
-      id: `local-${crypto.randomUUID()}`,
-      owner_id: uid,
-      template_id: tpl.id,
-      name: name.trim() || tpl.name,
-      slug,
-      status: 'live',
-      content,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-    upsertLocalWebsite(record);
-    return record;
+    console.log('[v0] createWebsiteFromContent Supabase insert failed:', error?.message);
+    return null;
   }
   return toRecord(data);
 }
@@ -297,14 +226,7 @@ export async function updateWebsite(
   id: string,
   patch: Partial<Pick<WebsiteRecord, 'name' | 'slug' | 'status' | 'content'>>,
 ): Promise<WebsiteRecord | null> {
-  if (!isSupabaseConfigured || !supabase) {
-    // Local-only record (demo session): apply the patch locally.
-    const local = getLocalWebsite(id);
-    if (!local) return null;
-    const updated = { ...local, ...patch, updated_at: new Date().toISOString() };
-    upsertLocalWebsite(updated);
-    return updated;
-  }
+  if (!isSupabaseConfigured || !supabase || !(await currentUserId())) return null;
   const { data, error } = await supabase
     .from('websites')
     .update({ ...patch, updated_at: new Date().toISOString() })
@@ -313,12 +235,6 @@ export async function updateWebsite(
     .maybeSingle();
   if (error || !data) {
     console.log('[v0] updateWebsite failed:', error?.message);
-    const local = getLocalWebsite(id);
-    if (local) {
-      const updated = { ...local, ...patch, updated_at: new Date().toISOString() };
-      upsertLocalWebsite(updated);
-      return updated;
-    }
     return null;
   }
   return toRecord(data);
@@ -330,8 +246,7 @@ export async function setWebsiteStatus(id: string, status: 'draft' | 'live'): Pr
 }
 
 export async function deleteWebsite(id: string): Promise<boolean> {
-  writeLocalWebsites(readLocalWebsites().filter((r) => r.id !== id));
-  if (!isSupabaseConfigured || !supabase) return true;
+  if (!isSupabaseConfigured || !supabase || !(await currentUserId())) return false;
   const { error } = await supabase.from('websites').delete().eq('id', id);
   if (error) {
     console.log('[v0] deleteWebsite failed:', error.message);

@@ -163,6 +163,7 @@ export const TemplateApplyWizard: React.FC<TemplateApplyWizardProps> = ({
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
   const [publishing, setPublishing] = useState(false);
+  const [publishError, setPublishError] = useState<string | null>(null);
   const [publishedProfile, setPublishedProfile] = useState<Profile | null>(null);
   const [createdSite, setCreatedSite] = useState<WebsiteRecord | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState('');
@@ -211,13 +212,11 @@ export const TemplateApplyWizard: React.FC<TemplateApplyWizardProps> = ({
   );
   // Prefill the Products step with the user's existing My Page catalog so
   // Create Website starts from everything they already added.
-  const [existingProductNames, setExistingProductNames] = useState<Set<string>>(new Set());
   useEffect(() => {
     if (!existingProfile?.id) return;
     let cancelled = false;
     StorageService.getProducts(existingProfile.id).then((items) => {
       if (cancelled || items.length === 0) return;
-      setExistingProductNames(new Set(items.map((p) => p.name.trim().toLowerCase())));
       setProductDrafts(
         items.map((p) => ({
           name: p.name,
@@ -408,6 +407,7 @@ export const TemplateApplyWizard: React.FC<TemplateApplyWizardProps> = ({
   /* Publish profile */
   const handlePublish = async () => {
     setPublishing(true);
+    setPublishError(null);
     try {
       const now = new Date().toISOString();
       const profile: Profile = {
@@ -461,44 +461,38 @@ export const TemplateApplyWizard: React.FC<TemplateApplyWizardProps> = ({
 
       // Create Website flow: store the wizard content as a NEW user-owned
       // website. My Page stays untouched; the template library is never
-      // modified. Products stay in the shared catalog — only genuinely new
-      // drafts are added.
+      // modified. Website content, including products, is saved in the
+      // Supabase websites row as one complete snapshot.
       if (websiteMode) {
+        const websiteProducts = productDrafts
+          .filter((p) => p.name.trim().length >= 2)
+          .map((draft, i) => {
+            const price = Number(draft.price) || 0;
+            const offer = Number(draft.offerPrice) || 0;
+            return {
+              id: `website_product_${Date.now()}_${i}`,
+              name: draft.name.trim(),
+              description: draft.description.trim(),
+              price,
+              currency: 'INR',
+              image_url: draft.image.trim(),
+              category: draft.category || category,
+              available: draft.available,
+              featured: false,
+              sort_order: 100 + i,
+              discount_pct: draft.offerOn && offer > 0 && offer < price ? Math.round((1 - offer / price) * 100) : undefined,
+            };
+          });
+        const websiteContent = { ...profile, products: websiteProducts } as Profile;
         const site = await createWebsiteFromContent(
           template.id,
           profile.business_name,
-          profile,
+          websiteContent,
           username.trim().toLowerCase(),
         );
         if (!site) {
-          console.error('[v0] Website creation failed');
+          setPublishError('Website was not saved. Please sign in with Supabase and try again. Your data was not saved locally.');
           return;
-        }
-        const newDrafts = productDrafts.filter(
-          (p) => p.name.trim().length >= 2 && !existingProductNames.has(p.name.trim().toLowerCase()),
-        );
-        const catalogId = existingProfile?.id || site.id;
-        for (let i = 0; i < newDrafts.length; i++) {
-          const draft = newDrafts[i];
-          const price = Number(draft.price) || 0;
-          const offer = Number(draft.offerPrice) || 0;
-          const product: Product = {
-            id: `prod_${Date.now()}_${i}`,
-            profile_id: catalogId,
-            name: draft.name.trim(),
-            description: draft.description.trim(),
-            price,
-            currency: 'INR',
-            image_url: draft.image.trim(),
-            category: draft.category || category,
-            available: draft.available,
-            featured: false,
-            sort_order: 100 + i,
-            discount_pct: draft.offerOn && offer > 0 && offer < price ? Math.round((1 - offer / price) * 100) : undefined,
-            created_at: now,
-            updated_at: now,
-          };
-          await StorageService.saveProduct(product);
         }
         setCreatedSite(site);
         setPublishedProfile(profile);
@@ -543,6 +537,9 @@ export const TemplateApplyWizard: React.FC<TemplateApplyWizardProps> = ({
       onPublished(saved);
     } catch (err) {
       console.error('Publish failed:', err);
+      if (websiteMode) {
+        setPublishError('Website could not be saved to Supabase. Please check your connection and try again.');
+      }
     } finally {
       setPublishing(false);
     }
@@ -1544,6 +1541,12 @@ export const TemplateApplyWizard: React.FC<TemplateApplyWizardProps> = ({
             )}
           </div>
         </div>
+
+        {publishError && (
+          <div role="alert" className="mx-5 sm:mx-7 mb-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-xs font-medium text-red-700">
+            {publishError}
+          </div>
+        )}
 
         {/* Footer */}
         <div className="px-5 sm:px-7 py-4 border-t border-zinc-100 flex items-center justify-between gap-3 shrink-0">
