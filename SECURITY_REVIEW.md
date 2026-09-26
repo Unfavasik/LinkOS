@@ -2,7 +2,7 @@
 
 **Review date:** 2026-09-26  
 **Supabase project:** `gbhtrermfcoeunjqykbg`  
-**Production migration status:** Prepared and syntax-checked; **not applied**.
+**Production migration status:** Applied on 2026-09-26 after explicit approval; post-apply verification completed.
 
 ## Live findings (read-only audit)
 
@@ -32,9 +32,10 @@
 
 - `npm run lint` — passed (TypeScript).
 - `npm run build` — passed. Vite reported an existing `__dirname` configuration warning and an existing large-bundle warning.
-- PostgreSQL outer migration syntax — accepted by the `pglast` parser. This parses SQL statements but does not execute PL/pgSQL bodies or alter the live database.
+- PostgreSQL migration syntax — accepted by the `pglast` parser; Supabase applied the migration successfully. Live post-check found all 19 tables with RLS enabled, zero sensitive direct anon SELECT grants, zero old broad storage policy, five LinkOS storage policies, and both public views present.
+- Supabase security advisor flagged direct client execution on SECURITY DEFINER functions, two intentionally sanitized public views, and disabled leaked-password protection. A follow-up migration revokes unneeded function EXECUTE grants. The public views are SECURITY DEFINER by design and return only the reviewed public projection; leaked-password protection is a separate Auth setting not changed here.
 - `git diff --check` — passed.
 
 ## Deployment gate
 
-This migration changes production data permissions, public storage access, and user/admin access boundaries. The source patch is prepared on a review branch; the migration has **not** been run against Supabase. Deploy the matching application changes, then apply the migration through the normal Supabase migration workflow and verify owner, support, anonymous, and published-content flows. Review the migration before approval; it is intended to be safely re-runnable.
+The approved migration is live. The user explicitly chose to proceed without deploying the app; accordingly, public website routes using the older direct-table client query may fail until the merged app is deployed. A second migration revokes the unneeded function RPC grants. Public views remain definer-secured with a reviewed field projection to preserve public pages while hiding auth user IDs and owner metadata. The Vercel connector was not enabled.
