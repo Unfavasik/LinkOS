@@ -7,12 +7,12 @@
 
 ## ১. কাঠামো (Architecture) — কীভাবে অ্যাপ Supabase ব্যবহার করে
 
-- LinkOS হলো একটা **React + Vite SPA** (Next.js নয়) — ব্রাউজার থেকে সরাসরি `@supabase/supabase-js` দিয়ে Supabase-এ যায়।
-- অ্যাপ **anon (publishable) key** ব্যবহার করে — ব্রাউজারের লগইন সেশন Supabase Auth-এ তৈরি হয় না।
-  ইউজার/অ্যাডমিন চেনা হয় অ্যাপের নিজস্ব পদ্ধতিতে (localStorage + `admins` টেবিল চেক)।
-- যেহেতু Supabase Auth সেশন নেই, তাই **RLS (Row Level Security) চালু থাকলে anon key দিয়ে লেখা (INSERT/UPDATE/DELETE) নীরবে ব্যর্থ হয়** — কোনো এররও দেখায় না, শুধু ০টা রো আপডেট হয়। এটাই আগে অ্যাডমিন সেভ কাজ না করার কারণ ছিল।
+- LinkOS হলো React + Vite SPA; browser app `@supabase/supabase-js` দিয়ে Supabase Auth ও database-এ যায়।
+- ব্যবহারকারীর পরিচয় verified Supabase session থেকে আসে; admin/support/owner capability `admins` টেবিলের সক্রিয় role থেকে যাচাই হয়। localStorage বা profile-এর `role` authorization নয়।
+- **RLS সব public application table-এ চালু রাখতে হবে।** anon/publishable key public; তা কখনো private table access-এর বিকল্প নয়। access নির্ধারণ করে table grants ও RLS policies।
+- Service-role/secret key browser bundle-এ দেওয়া যাবে না।
 
-> **মূল নিয়ম:** এই অ্যাপের সব টেবিলে **RLS বন্ধ (DISABLE)** রাখতে হবে, নাহলে অ্যাডমিন প্যানেল ও ইউজার ডেটা সেভ হবে না।
+> **মূল নিয়ম:** কোনো troubleshooting-এর জন্য RLS বন্ধ করবেন না। সমস্যা হলে Supabase logs, session, grants এবং policy predicates যাচাই করুন।
 
 ---
 
@@ -49,50 +49,42 @@
 
 ## ৪. RLS নিয়ম — সবচেয়ে গুরুত্বপূর্ণ ধাপ
 
-### বর্তমান অবস্থা (যাচাই করা)
-- **সব ১০টি টেবিলেই RLS চালু ❌** — anon কী দিয়ে যেকোনো টেবিল পড়তে গেলে `42501 permission denied` আসে।
-- ফলে গ্যালারি, অ্যাডমিন প্যানেল, অর্ডার — সব ডেটাবেস-নির্ভর ফিচার ব্যর্থ হচ্ছে।
+### Production security state
 
-### GRANT আর RLS — গুলিয়ে ফেলবেন না
-- Dashboard-এ টেবিলের **Privileges/GRANT**-এ `SELECT` anon-এর জন্য দেখালেও সেটা যথেষ্ট নয়।
-- **RLS (Row Level Security) চালু থাকলে GRANT থাকলেও প্রতিটি কোয়েরি ব্লক হয়** — কারণ RLS চালু মানে "প্রতিটি রো-এর জন্য পলিসি মানতে হবে", আর পলিসি না থাকলে কোনো রো-ই দেখা যায় না।
-- তাই সমাধান GRANT দেওয়া নয় — **RLS বন্ধ করা** (নিচের SQL)।
+- 2026-09-26-এ LinkOS-এর ১৯টি public application table-এ RLS enable করা হয়েছে।
+- Anonymous visitor কেবল প্রকাশিত business content পড়তে পারে এবং সীমিত public workflows—analytics, order, queue, feedback, guest support-ticket—submit করতে পারে। private data সরাসরি পড়তে পারে না।
+- Signed-in user নিজের profile ও ব্যবসার data-তে সীমাবদ্ধ। Admin/support/owner access `admins` টেবিলের active role অনুযায়ী আলাদা।
+- `storage.objects`-এ পুরোনো unrestricted `allow all object access` policy সরিয়ে public logo/product read ও user-UUID-folder scoped write বসানো হয়েছে।
 
-### করণীয় — Supabase Dashboard → SQL Editor-এ চালান:
+### নতুন/পরিবর্তিত database install
 
-```sql
--- সব টেবিলের RLS বন্ধ করুন (এই অ্যাপের জন্য প্রয়োজন)
-ALTER TABLE templates        DISABLE ROW LEVEL SECURITY;
-ALTER TABLE admins           DISABLE ROW LEVEL SECURITY;
-ALTER TABLE admin_invites    DISABLE ROW LEVEL SECURITY;
-ALTER TABLE profiles         DISABLE ROW LEVEL SECURITY;
-ALTER TABLE products         DISABLE ROW LEVEL SECURITY;
-ALTER TABLE orders           DISABLE ROW LEVEL SECURITY;
-ALTER TABLE customers        DISABLE ROW LEVEL SECURITY;
-ALTER TABLE links            DISABLE ROW LEVEL SECURITY;
-ALTER TABLE queue_entries    DISABLE ROW LEVEL SECURITY;
-ALTER TABLE analytics_events DISABLE ROW LEVEL SECURITY;
-```
+Migration files-ই authoritative; Supabase Dashboard-এ গিয়ে RLS disable করার কোনো manual SQL চালাবেন না। Existing project-এ `supabase/migrations/20260925_linkos_least_privilege_rls.sql` apply হয়েছে। Fresh setup-এ project-এর documented Supabase migration workflow দিয়ে migrations apply করুন এবং `README`/release notes-এর sequence অনুসরণ করুন।
 
-### চালানোর পর মিলিয়ে দেখুন (SQL Editor-এ):
+### GRANT ও RLS একসাথে
+
+- GRANT privilege শুধু operation চালানোর সামর্থ্য দেয়; RLS প্রতিটি row-তে অনুমতি যাচাই করে। দুইটিই মিলতে হবে।
+- RLS বন্ধ করা **সমাধান নয়**—anon key দিয়ে private row leak বা overwrite হতে পারে।
+- RLS failure হলে `auth.uid()`, session email, table grants, column grants, policy predicates এবং Supabase logs যাচাই করুন। Admin role app cache/email allowlist দিয়ে সেট করবেন না।
+
+### যাচাই
 
 ```sql
-SELECT relname, relrowsecurity AS rls_on
-FROM pg_class
-WHERE relname IN ('templates','admins','admin_invites','profiles','products',
-                  'orders','customers','links','queue_entries','analytics_events')
-ORDER BY relname;
+select c.relname as table_name,
+       c.relrowsecurity as rls_enabled,
+       c.relforcerowsecurity as rls_forced
+from pg_class c
+join pg_namespace n on n.oid = c.relnamespace
+where n.nspname = 'public' and c.relkind = 'r'
+  and c.relname = any(array[
+    'profiles','user_profiles','products','links','analytics_events','customers',
+    'orders','queue_entries','admins','admin_invites','support_tickets','feedback',
+    'templates','guides','announcements','websites','user_notifications',
+    'needle_chats','saved_templates'
+  ])
+order by c.relname;
 ```
 
-> সব সারিতে `rls_on = false` দেখালেই ঠিক আছে। কোনো সারিতে `true` থাকলে ওই টেবিলের উপরের `ALTER TABLE ... DISABLE` আবার চালান।
-
-> **নিরাপত্তা নোট:** RLS বন্ধ মানে anon key যার কাছে আছে সে সব ডেটা পড়তে/লিখতে পারবে।
-> এই অ্যাপ ইচ্ছাকৃতভাবে এই কাঠামোতে চলে (নিজস্ব লগইন, Supabase Auth নেই)।
-> ভবিষ্যতে Supabase Auth + RLS পলিসিতে যেতে চাইলে আলাদা মাইগ্রেশন লাগবে।
-
-### যাচাই কীভাবে বুঝবেন RLS সমস্যা
-- অ্যাডমিন প্যানেলে Save দিলে "Saved" দেখায় কিন্তু রিফ্রেশ করলে পুরনো ডেটা ফেরা = RLS চালু।
-- টেস্ট: SQL Editor-এ `SELECT * FROM templates;` দিয়ে দেখুন `updated_at` বদলাচ্ছে কিনা।
+১৯টি application table-এই `rls_enabled = true` প্রত্যাশিত। Policy/grant audit ছাড়া কোনো table-এ RLS disable করবেন না।
 
 ---
 
@@ -135,25 +127,25 @@ ORDER BY relname;
 
 ## ৭. অ্যাডমিন চেনার নিয়ম
 
-- `admins` টেবিলে ইমেইল থাকতে হবে এবং `is_active = true` হতে হবে (`src/lib/adminAuth.ts` যাচাই করে)।
-- বর্তমান অ্যাডমিন: `hello.devasik@gmail.com`
-- নতুন অ্যাডমিন যোগ করতে: অ্যাডমিন প্যানেল → People → Admins, অথবা সরাসরি:
-  ```sql
-  INSERT INTO admins (email, role, is_active) VALUES ('email@example.com', 'admin', true);
-  ```
+- Admin access কেবল authenticated Supabase session-এর সাথে মেলা `admins` row এবং `is_active = true` থেকে আসে। Roles: `owner`, `admin`, `support`।
+- `owner` admin membership/invite পরিচালনা করতে পারে; `admin` operational/catalog/content data পরিচালনা করে; `support` support tickets/feedback-এ সীমিত।
+- নিজের `admins.role`, `profiles.role` বা localStorage edit করে privilege পাওয়া যায় না। Browser/email allowlist authorization নয়।
+- Admin যোগ করতে app-এর `/admin` → People → Admins invitation flow ব্যবহার করুন; সরাসরি client-side SQL/anon key দিয়ে privilege grant করবেন না।
 
 ---
 
-## ৮. নতুন প্রজেক্টে পুরো সেটআপ চেকলিস্ট (ক্রম অনুযায়ী)
+## ৮. নতুন প্রজেক্টে পুরো সেটআপ চেকলিস্ট
 
-1. ☐ Supabase প্রজেক্ট তৈরি
-2. ☐ Vercel-এ Supabase ইন্টিগ্রেশন কানেক্ট (env vars অটো আসবে)
-3. ☐ ১০টি টেবিল তৈরি (উপরের স্কিমা অনুযায়ী)
-4. ☐ **সব টেবিলে RLS বন্ধ** (৪ নম্বর সেকশনের SQL)
-5. ☐ `templates`-এ শুধু ৩টি রো সিড করা (৫ নম্বর সেকশন)
-6. ☐ `admins`-এ অ্যাডমিন ইমেইল যোগ (৭ নম্বর সেকশন)
-7. ☐ অ্যাডমিন প্যানেলে লগইন → Templates → Edit → Save → রিফ্রেশ করে সেভ হচ্ছে কিনা যাচাই
-8. ☐ ইউজার প্রিভিউতে অ্যাডমিনের এডিট দেখা যাচ্ছে কিনা যাচাই
+1. ☐ Supabase প্রজেক্ট তৈরি ও environment variables সংযুক্ত করুন।
+2. ☐ Repository migration workflow দিয়ে সব `supabase/migrations` apply করুন।
+3. ☐ `supabase/schema.sql` ও migration sequence-এর সাথে schema মিলিয়ে নিন।
+4. ☐ ১৯টি LinkOS public application table-এ RLS enabled আছে নিশ্চিত করুন; **RLS disable করবেন না**।
+5. ☐ `templates`-এ প্রত্যাশিত seed rows আছে যাচাই করুন।
+6. ☐ Owner account/admin invite-টি authenticated invite flow দিয়ে স্থাপন করুন।
+7. ☐ Anonymous, signed-in user, support, admin ও owner role test করুন; private data cross-account দেখা যায় কি না যাচাই করুন।
+8. ☐ Public website, checkout/order, queue, feedback, uploads ও dashboard CRUD-এ smoke test চালান।
+
+---
 
 ---
 
